@@ -1,0 +1,6 @@
+[submodule "src/cyclone"]
+	path = src/cyclone
+	url = https://github.com/notaz/cyclone68000
+[submodule "vendor/cyclone"]
+	path = vendor/cyclone
+	url = https://github.com/notaz/cyclone68000

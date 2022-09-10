@@ -1,0 +1,9 @@
+-I/opt/devkitpro/devkitARM/arm-none-eabi/include
+-I/opt/devkitpro/libctru/include
+-I/opt/devkitpro/portlibs/3ds/include
+-Isrc
+-Isrc/3ds
+-Ivendor/cyclone
+-Ivendor/cyclone/Disa
+-D__3DS__
+-DSTRIVE_68K_CYCLONE
