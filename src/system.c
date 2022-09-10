@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "acia.h"
 #include "memory.h"
 #include "mfp.h"
 #include "platform.h"
 #include "platform_config.h"
 #include "screen.h"
 #include "system.h"
+#include "wd1772.h"
+#include "ym2149.h"
 
 // #define TRACE
 
@@ -15,28 +18,47 @@
 static FILE* trace_file;
 #endif
 
+static uint32_t system_cycle_count;
+
 #ifdef STRIVE_68K_CYCLONE
 #include "Cyclone.h"
 struct Cyclone cpu_core;
+static int cpu_cycles_running;
 static int cpu_cycles_left;
+static uint8_t mfp_interrupt_offset;
+
+static inline void system_cpu_stop_inner(void) {
+    cpu_cycles_left += cpu_core.cycles;
+    cpu_core.cycles = 0;
+}
 
 void system_bus_error_inner(void) {
     if (cpu_core.irq != 7) {
         iprintf("bus error (%02X)\n", cpu_core.srh);
 
         cpu_core.irq = 7;
-        cpu_cycles_left += cpu_core.cycles;
-        cpu_core.cycles = 0;
+        system_cpu_stop_inner();
     }
+}
+
+void system_mfp_interrupt(uint8_t id) {
+    cpu_core.irq = 6;
+    mfp_interrupt_offset = 0x40 + id; // TODO: vector base
 }
 
 static int system_cpu_irq_callback(int int_level) {
     cpu_core.irq = 0;
-    iprintf("IRQ callback %d (%02X)\n", int_level, cpu_core.srh);
+    // iprintf("IRQ callback %d (%02X)\n", int_level, cpu_core.srh);
 
-    if (int_level == 7) {
+    switch (int_level) {
+    case 7:
+        // NMI - bus error
         return 2;
-    } else {
+    case 6:
+        // MFP interrupt
+        return mfp_interrupt_offset;
+    default:
+        // HBLANK, VBLANK interrupt
         return CYCLONE_INT_ACK_AUTOVECTOR;
     }
 }
@@ -69,6 +91,8 @@ static bool system_cpu_init(void) {
 
     // init components
     mfp_init();
+    acia_init();
+    wd1772_init();
 
     // init PC for 192K ROM
     CycloneReset(&cpu_core);
@@ -78,6 +102,7 @@ static bool system_cpu_init(void) {
     cpu_core.a[7] = start_addr + 4;
     cpu_core.IrqCallback = system_cpu_irq_callback;
 
+    system_cycle_count = 0;
     cpu_cycles_left = 0;
 
     iprintf("init! membase = %08lX, pc = %06lX\n", cpu_core.membase, (cpu_core.pc - cpu_core.membase) & 0xFFFFFF);
@@ -91,10 +116,22 @@ static bool system_cpu_init(void) {
     return true;
 }
 
+uint32_t system_cycles(void) {
+    return system_cycle_count + cpu_cycles_running - cpu_core.cycles;
+}
+
 static void system_cpu_run(int cycles) {
-    cpu_core.cycles += cpu_cycles_left + cycles;
-    cpu_cycles_left = 0;
-    CycloneRun(&cpu_core);
+    do {
+        cpu_cycles_running = cycles + cpu_cycles_left;
+        cpu_core.cycles += cpu_cycles_running;
+        cycles = 0;
+        cpu_cycles_left = 0;
+        CycloneRun(&cpu_core);
+        system_cycle_count += cpu_cycles_running - cpu_cycles_left;
+    } while (cpu_cycles_left > 0);
+
+    system_cycle_count -= cpu_core.cycles;
+    cpu_core.cycles = 0;
 }
 #endif
 
@@ -108,11 +145,9 @@ bool system_init(void) {
 }
 
 bool system_frame(void) {
-#ifndef TRACE
-    system_cpu_run(32084988 / 240);
-#else
-    iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq);
+    // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq);
 
+#ifdef TRACE
     for (int i = 0; i < 15000; i++) {
         system_cpu_run(1);
         uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
@@ -123,12 +158,21 @@ bool system_frame(void) {
             DisaText);
     }
     fflush(trace_file);
+#else
+    for (int y = 0; y < 313; y++) {
+        if (y < 200 && cpu_core.irq < 2) {
+            // Emit HBLANK
+            cpu_core.irq = 2; 
+        } else if (y == 200 && cpu_core.irq < 4) {
+            // Emit VBLANK
+            cpu_core.irq = 4;
+        }
+        system_cpu_run(512);
+	mfp_advance(512);
+    }    
 #endif
 
-    if (cpu_core.irq < 4) {
-        iprintf("screen @ %08X, res %d (%02X)\n", atari_screen.base, atari_screen.resolution, atari_mfp.gpio);
-        cpu_core.irq = 4; // vblank
-    }
+    // iprintf("%d cycles\n", system_cycle_count);
     platform_gfx_draw_frame();
 
     return true;

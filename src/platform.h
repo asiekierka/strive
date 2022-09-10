@@ -16,6 +16,7 @@ bool platform_init(void);
 bool platform_check_events(void);
 bool platform_exit(void);
 void platform_wait_key(void);
+void platform_wait_vblank(void);
 
 /* == Graphics == */
 

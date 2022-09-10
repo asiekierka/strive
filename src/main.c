@@ -13,10 +13,9 @@ int main(int argc, const char **argv) {
 	system_init();
 
 	while (platform_check_events()) {
-		// TODO
-		if (hidKeysHeld() == 0) system_frame();
+		system_frame();
 
-		gspWaitForVBlank();
+		platform_wait_vblank();
 	}
 
 	platform_exit();

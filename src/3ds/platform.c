@@ -39,3 +39,7 @@ void platform_wait_key(void) {
 		gspWaitForVBlank();
 	}
 }
+
+void platform_wait_vblank(void) {
+    gspWaitForVBlank();
+}

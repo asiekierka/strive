@@ -36,9 +36,9 @@ void _platform_gfx_init(void) {
 
     gfxInitDefault();
     gfxSet3D(false);
-    C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
-
     consoleInit(GFX_BOTTOM, NULL);
+
+    C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
 	target_top = C3D_RenderTargetCreate(240, 400, GPU_RB_RGB8, GPU_RB_DEPTH16);
 	C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, 0, 0);
@@ -65,6 +65,12 @@ void _platform_gfx_init(void) {
 }
 
 void _platform_gfx_exit(void) {
+    linearFree(screen_buf);
+    C3D_TexDelete(&screen_tex);
+
+    C3D_RenderTargetDelete(target_top);
+
+    C3D_Fini();
     gfxExit();
 }
 
@@ -113,10 +119,10 @@ void platform_gfx_draw_frame(void) {
     for (int y = 0; y < 200; y++) {
         uint32_t *dst = screen_buf + (1024 * y);
         for (int x = 0; x < 320; x += 16, src += 8) {
-            uint16_t bp0 = src[1] | (src[0] << 8);
-            uint16_t bp1 = src[3] | (src[2] << 8);
-            uint16_t bp2 = src[5] | (src[4] << 8);
-            uint16_t bp3 = src[7] | (src[6] << 8);
+            uint16_t bp0 = src[0] | (src[1] << 8);
+            uint16_t bp1 = src[2] | (src[3] << 8);
+            uint16_t bp2 = src[4] | (src[5] << 8);
+            uint16_t bp3 = src[6] | (src[7] << 8);
             for (int i = 0; i < 16; i++, bp0 <<= 1, bp1 <<= 1, bp2 <<= 1, bp3 <<= 1) {
                 uint8_t color = (bp0 >> 15) | ((bp1 >> 14) & 0x02)
                     | ((bp2 >> 13) & 0x04) | ((bp3 >> 12) & 0x08);

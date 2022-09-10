@@ -1,3 +1,3 @@
 #pragma once
 
-#define ROM_FILE "romfs:/etos192us.img"
+#define ROM_FILE "romfs:/etos06.img"

@@ -7,4 +7,5 @@ uint8_t ym2149_read8(uint8_t addr) {
 
 void ym2149_write8(uint8_t addr, uint8_t value) {
     // TODO
+    iprintf("todo: ym2149_write8 %02X = %02X\n", addr, value);
 }
