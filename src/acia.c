@@ -247,7 +247,6 @@ static void acia_ikbd_recv(uint8_t value) {
     case 0x80: /* Reset */
         if (atari_acia.ikbd_in_len < 2) return;
         if (atari_acia.ikbd_in[1] == 0x01) {
-            iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
             atari_acia.cycles_until_reset = 2000000;
         }
         break;
@@ -309,8 +308,6 @@ void acia_ikbd_set_mouse_pos(int32_t x, int32_t y) {
     atari_acia.mouse_x = x;
     atari_acia.mouse_y = y;
 
-    // printf("acia: set mouse pos %d %d (%d)\n", x, y, atari_acia.ikbd_out_len);
-
     if (atari_acia.mouse_mode == ACIA_MOUSE_MODE_RELATIVE) {
         acia_ikbd_update_mouse_relative(false);
     }
@@ -328,9 +325,11 @@ void acia_ikbd_set_mouse_button(uint8_t v) {
 
     if (last_mouse_button != atari_acia.mouse_button) {
         if (atari_acia.mouse_mode == ACIA_MOUSE_MODE_RELATIVE) {
-            acia_ikbd_update_mouse_relative(false);
+            acia_ikbd_update_mouse_relative(true);
         }
     }
+
+    last_mouse_button = atari_acia.mouse_button;
 
     if (v & ACIA_MOUSE_BUTTON_LEFT_UP) {
         atari_acia.mouse_button &= ~ACIA_MOUSE_BUTTON_LEFT_DOWN;
@@ -341,7 +340,7 @@ void acia_ikbd_set_mouse_button(uint8_t v) {
 
     if (last_mouse_button != atari_acia.mouse_button) {
         if (atari_acia.mouse_mode == ACIA_MOUSE_MODE_RELATIVE) {
-            acia_ikbd_update_mouse_relative(false);
+            acia_ikbd_update_mouse_relative(true);
         }
     }
 }

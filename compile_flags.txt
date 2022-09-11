@@ -1,9 +1,14 @@
 -I/opt/devkitpro/devkitARM/arm-none-eabi/include
 -I/opt/devkitpro/libctru/include
+-I/opt/devkitpro/libnds/include
 -I/opt/devkitpro/portlibs/3ds/include
+-I/opt/devkitpro/portlibs/nds/include
 -Isrc
 -Isrc/3ds
+-Isrc/nds
 -Ivendor/ay38910-flubba
 -Ivendor/cyclone
 -Ivendor/cyclone/Disa
 -D__3DS__
+_D__NDS__
+-DARM9

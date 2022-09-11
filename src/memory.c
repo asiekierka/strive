@@ -9,9 +9,12 @@
 #include "wd1772.h"
 #include "ym2149.h"
 
+NDS_DTCM_BSS
 uint8_t *memory_ram;
+NDS_DTCM_BSS
 uint8_t *memory_rom;
-uint32_t memory_ram_mask = (4 * 1024 * 1024) - 1;
+NDS_DTCM_DATA
+uint32_t memory_ram_mask = (1 * 1024 * 1024) - 1;
 uint8_t memory_io_bank_cfg = 0b00001010;
 
 static uint8_t io_read8(uint32_t address) {
@@ -84,8 +87,9 @@ static void io_write16(uint32_t address, uint16_t value) {
     io_write8(address + 1, value);
 }
 
+NDS_ITCM_CODE
 uint8_t memory_read8(uint32_t address) {
-    if (address <= memory_ram_mask) {
+    if (address < 0x400000) {
         return memory_ram[address ^ 1];
     } else if (address < 0xE00000) {
         system_bus_error_inner();
@@ -103,8 +107,9 @@ uint8_t memory_read8(uint32_t address) {
     }
 }
 
+NDS_ITCM_CODE
 uint16_t memory_read16(uint32_t address) {
-    if (address <= memory_ram_mask) {
+    if (address < 0x400000) {
         return *((uint16_t*) &memory_ram[address & memory_ram_mask]);
     } else if (address < 0xE00000) {
         system_bus_error_inner();
@@ -122,12 +127,14 @@ uint16_t memory_read16(uint32_t address) {
     }
 }
 
+NDS_ITCM_CODE
 uint32_t memory_read32(uint32_t address) {
     return (memory_read16(address) << 16) | memory_read16(address + 2);
 }
 
+NDS_ITCM_CODE
 void memory_write8(uint32_t address, uint8_t value) {
-    if (address <= memory_ram_mask) {
+    if (address < 0x400000) {
         memory_ram[address ^ 1] = value;
     } else if (address < 0xE00000) {
         system_bus_error_inner();
@@ -138,8 +145,9 @@ void memory_write8(uint32_t address, uint8_t value) {
     }
 }
 
+NDS_ITCM_CODE
 void memory_write16(uint32_t address, uint16_t value) {
-    if (address <= memory_ram_mask) {
+    if (address < 0x400000) {
         *((uint16_t*) &memory_ram[address]) = value;
     } else if (address < 0xE00000) {
         system_bus_error_inner();
@@ -150,6 +158,7 @@ void memory_write16(uint32_t address, uint16_t value) {
     }
 }
 
+NDS_ITCM_CODE
 void memory_write32(uint32_t address, uint32_t value) {
     memory_write16(address, value >> 16);
     memory_write16(address + 2, value);
@@ -159,6 +168,7 @@ void memory_write32(uint32_t address, uint32_t value) {
 #include "Cyclone.h"
 extern struct Cyclone cpu_core;
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_checkpc(uint32_t pc) {
     pc -= cpu_core.membase;
 
@@ -171,38 +181,47 @@ uint32_t strive_cyclone_checkpc(uint32_t pc) {
     return pc + cpu_core.membase;
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_read8(uint32_t address) {
     return memory_read8(address);
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_read16(uint32_t address) {
     return memory_read16(address);
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_read32(uint32_t address) {
     return memory_read32(address);
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_fetch8(uint32_t address) {
     return memory_read8(address);    
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_fetch16(uint32_t address) {
     return memory_read16(address);
 }
 
+NDS_ITCM_CODE
 uint32_t strive_cyclone_fetch32(uint32_t address) {
     return memory_read32(address);    
 }
 
+NDS_ITCM_CODE
 void strive_cyclone_write8(uint32_t address, uint8_t value) {
     memory_write8(address, value);
 }
 
+NDS_ITCM_CODE
 void strive_cyclone_write16(uint32_t address, uint16_t value) {
     memory_write16(address, value);    
 }
 
+NDS_ITCM_CODE
 void strive_cyclone_write32(uint32_t address, uint32_t value) {
     memory_write32(address, value);
 }

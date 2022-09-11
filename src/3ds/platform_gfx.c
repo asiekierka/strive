@@ -1,4 +1,4 @@
-#include "memory.h"
+#include "../memory.h"
 #include "platform.h"
 #include "screen.h"
 #include <stdint.h>
@@ -11,10 +11,10 @@
 static bool palette_changed = false;
 static uint32_t palette_mini_lut[16];
 static uint32_t palette_mono_lut[4];
-static uint8_t color_map_st[8] = {
+static const uint8_t color_map_st[8] = {
     0, 36, 73, 109, 146, 182, 219, 255
 };
-static uint8_t color_map_ste[16] = {
+static const uint8_t color_map_ste[16] = {
     0, 34, 68, 102, 136, 170, 204, 238,
     17, 51, 85, 119, 153, 187, 221, 255
 };

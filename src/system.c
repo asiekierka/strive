@@ -22,6 +22,7 @@ static uint32_t system_cycle_count;
 
 #ifdef STRIVE_68K_CYCLONE
 #include "Cyclone.h"
+NDS_DTCM_BSS
 struct Cyclone cpu_core;
 static int cpu_cycles_overrun;
 static int cpu_cycles_left;
@@ -136,6 +137,7 @@ uint32_t system_cycles(void) {
     return system_cycle_count;
 }
 
+NDS_ITCM_CODE
 static void system_cpu_run(int cycles) {
     while (cycles > 0) {
         cpu_core.cycles += cycles;
@@ -150,7 +152,7 @@ static void system_cpu_run(int cycles) {
 #endif
 
 bool system_init(void) {
-    memory_ram = malloc(4096 * 1024);
+    memory_ram = malloc(memory_ram_mask + 1);
     memory_rom = malloc(192 * 1024);
 
     if (!system_cpu_init()) return false;
@@ -161,6 +163,8 @@ bool system_init(void) {
 bool system_frame(void) {
     // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
 
+    platform_gfx_draw_frame();
+    
     acia_advance(512 * 313);
     for (int y = 0; y < 313; y++) {
         if (y < 200 && cpu_core.irq < 2) {
@@ -195,7 +199,6 @@ bool system_frame(void) {
 #endif
 
     // iprintf("%d cycles\n", system_cycle_count);
-    platform_gfx_draw_frame();
 
     return true;
 }

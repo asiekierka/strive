@@ -1,7 +1,4 @@
 #include <stdio.h>
-#include <3ds.h>
-#include "3ds/services/hid.h"
-#include "Cyclone.h"
 #include "platform.h"
 #include "system.h"
 
