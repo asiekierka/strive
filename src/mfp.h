@@ -8,6 +8,7 @@
 #define MFP_IN_SERVICE_ENABLE 0x08
 
 #define MFP_INT_ID_ACIA 4
+#define MFP_INT_ID_DISK 5
 
 #define MFP_INT_B_CENTRONICS_BUSY 0
 #define MFP_INT_B_RS232_DCD       1

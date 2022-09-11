@@ -13,6 +13,7 @@ typedef int32_t s32;
 #include "AY38910.h"
 
 AY38910 ym2149;
+static uint8_t ym_port_a;
 
 void ym2149_init(void) {
     memset(&ym2149, 0, sizeof(AY38910));
@@ -20,12 +21,15 @@ void ym2149_init(void) {
 }
 
 uint8_t ym2149_get_port_a(void) {
-    return ym2149.ayPortAIn;
+    return ym_port_a;
 }
 
 uint8_t ym2149_read8(uint8_t addr) {
     switch (addr) {
     case 0x00:
+        if (ym2149.ayRegIndex == 0x0E) {
+            return ym_port_a;
+        }
         return ay38910DataR(&ym2149);
     default:
         return 0;
@@ -38,6 +42,9 @@ void ym2149_write8(uint8_t addr, uint8_t value) {
         ay38910IndexW(value, &ym2149);
         break;
     case 0x02:
+        if (ym2149.ayRegIndex == 0x0E) {
+            ym_port_a = value;
+        }
         ay38910DataW(value, &ym2149);
         break;
     }

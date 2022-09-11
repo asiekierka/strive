@@ -293,7 +293,6 @@ static void acia_ikbd_update_mouse_relative(bool force) {
         acia_ikbd_send_done();
         atari_acia.last_mouse_x = atari_acia.mouse_x;
         atari_acia.last_mouse_y = atari_acia.mouse_y;
-        atari_acia.mouse_button = 0;
     }
 }
 

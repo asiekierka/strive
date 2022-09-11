@@ -123,14 +123,24 @@ static void mfp_update_timer_d() {
 }
 
 static void mfp_update_interrupts(void) {
-    uint32_t pending = atari_mfp.intr.pending & atari_mfp.intr.mask;
-    if (pending != 0) {
+    while (true) {
+        uint32_t pending = atari_mfp.intr.pending & atari_mfp.intr.mask;
+        if (pending == 0) return;
+
         int offset = 31 - __builtin_clz(pending);
-        system_mfp_interrupt(offset);
-        if (atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE) {
-            atari_mfp.intr.in_service |= (1 << offset);
-            // TODO: clear in_service
+
+        uint16_t mask_above_offset = ~((1 << (offset + 1)) - 1);
+        if (atari_mfp.intr.in_service & mask_above_offset) {
+            return;
         }
+
+        if (system_mfp_interrupt(offset)) {
+            if (atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE) {
+                atari_mfp.intr.in_service |= (1 << offset);
+            }
+        }
+
+        return;
     }
 }
 
@@ -147,27 +157,27 @@ void mfp_ack_interrupt(uint8_t id) {
 }
 
 static const uint8_t mfp_int_id_to_index[8] = {
-    0, 0, 0, 0, MFP_INT_B_ACIA, 0, 0, 0
+    0, 0, 0, 0, MFP_INT_B_ACIA, MFP_INT_B_DISK, 0, 0
 };
 
 void mfp_set_interrupt(uint8_t id) {
     uint8_t mask = (1 << id);
-    // debug_printf("mfp: received ext int set %d\n", id);
     if (atari_mfp.gpio & mask) {
         atari_mfp.gpio &= ~mask;
         if (!(atari_mfp.active_edge & mask)) {
-            system_mfp_interrupt(mfp_int_id_to_index[id]);
+            mfp_interrupt(mfp_int_id_to_index[id]);
+            // debug_printf("mfp: queued ^ interrupt %d\n", mfp_int_id_to_index[id]);
         }
     }
 }
 
 void mfp_clear_interrupt(uint8_t id) {
     uint8_t mask = (1 << id);
-    // debug_printf("mfp: received ext int clr %d\n", id);
     if (!(atari_mfp.gpio & mask)) {
         atari_mfp.gpio |= mask;
         if (atari_mfp.active_edge & mask) {
-            system_mfp_interrupt(mfp_int_id_to_index[id]);
+            mfp_interrupt(mfp_int_id_to_index[id]);
+            // debug_printf("mfp: queued v interrupt %d\n", mfp_int_id_to_index[id]);
         }
     }
 }
@@ -215,9 +225,9 @@ void mfp_write8(uint8_t addr, uint8_t value) {
         case 0x05:
             atari_mfp.data_direction = value; break;
         case 0x07:
-            atari_mfp.intr.enable = (atari_mfp.intr.enable & 0xFF) | (value << 8); break;
+            atari_mfp.intr.enable = (atari_mfp.intr.enable & 0xFF) | (value << 8); atari_mfp.intr.pending &= ((value << 8) | 0xFF); mfp_update_interrupts(); break;
         case 0x09:
-            atari_mfp.intr.enable = (atari_mfp.intr.enable & 0xFF00) | value; break;
+            atari_mfp.intr.enable = (atari_mfp.intr.enable & 0xFF00) | value; atari_mfp.intr.pending &= (value | 0xFF00); mfp_update_interrupts(); break;
         case 0x0B:
             atari_mfp.intr.pending = (atari_mfp.intr.pending & 0xFF) | (value << 8); mfp_update_interrupts(); break;
         case 0x0D:

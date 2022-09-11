@@ -24,7 +24,7 @@ uint8_t memory_io_bank_cfg = 0b00001010;
 
 NDS_ITCM_CODE
 static uint8_t io_read8(uint32_t address) {
-    if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O read %06lX\n", address);
+    // if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O read %06lX\n", address);
     
     switch (address & 0xFFFFC0) {
     case 0xFFFA00:
@@ -58,7 +58,7 @@ static uint16_t io_read16(uint32_t address) {
 
 NDS_ITCM_CODE
 static void io_write8(uint32_t address, uint8_t value) {
-    if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
+    // if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
 
     switch (address & 0xFFFFC0) {
     case 0xFFFA00:
@@ -83,7 +83,7 @@ static void io_write8(uint32_t address, uint8_t value) {
             memory_io_bank_cfg = value;
             break;
         default:
-            debug_printf("unknown I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
+            debug_printf("unknown I/O write %06lX = %02lX\n", address, ((uint32_t) value) & 0xFF);
             platform_wait_key();
             system_bus_error_inner();
             break;

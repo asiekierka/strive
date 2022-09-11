@@ -1,6 +1,7 @@
 #include "platform.h"
 #include "3ds/os.h"
 #include "acia.h"
+#include "platform_config.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -64,7 +65,6 @@ static bool touch_button_up_next = false;
 
 void platform_update_input(void) {
     if (touch_button_up_next) {
-        acia_ikbd_set_mouse_button(ACIA_MOUSE_BUTTON_LEFT_UP);
         touch_button_up_next = false;
     }
 
@@ -76,7 +76,6 @@ void platform_update_input(void) {
 
     if (hidKeysHeld() & KEY_TOUCH) {
         ticks_since_touch++;
-        touchPosition last_touch;
         hidTouchRead(&last_touch);
         acia_ikbd_set_mouse_pos(last_touch.px, last_touch.py - 20);
 
@@ -92,8 +91,9 @@ void platform_update_input(void) {
         if (ticks_since_touch > 0 && ticks_since_touch < TOUCH_CLICK_TICKS &&
             abs(last_touch.px - starting_touch_position.px) <= TOUCH_CLICK_THRESHOLD &&
             abs(last_touch.py - starting_touch_position.py) <= TOUCH_CLICK_THRESHOLD) {
+            debug_printf("click\n");
             acia_ikbd_set_mouse_button(ACIA_MOUSE_BUTTON_LEFT_DOWN);
-            touch_button_up_next = true;
+            acia_ikbd_set_mouse_button(ACIA_MOUSE_BUTTON_LEFT_UP);
         } else if (touch_button_down) {
             acia_ikbd_set_mouse_button(ACIA_MOUSE_BUTTON_LEFT_UP);
         }

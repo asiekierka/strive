@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,11 +45,14 @@ void system_bus_error_inner(void) {
     }
 }
 
-void system_mfp_interrupt(uint8_t id) {
+bool system_mfp_interrupt(uint8_t id) {
     if (cpu_core.irq < 6) {
         cpu_core.irq = 6;
         mfp_interrupt_offset = id;
-    }   
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void system_mfp_interrupt_inner(uint8_t id) {
@@ -112,6 +116,8 @@ static bool system_cpu_init(void) {
     acia_init();
     wd1772_init();
     ym2149_init();
+
+    atari_wd1772.fdc_a.file = fopen("/disk.st", "rb");
 
     // init PC for 192K ROM
     CycloneReset(&cpu_core);
