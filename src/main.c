@@ -13,6 +13,7 @@ int main(int argc, const char **argv) {
 	system_init();
 
 	while (platform_check_events()) {
+		platform_update_input();
 		system_frame();
 
 		platform_wait_vblank();

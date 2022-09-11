@@ -23,7 +23,7 @@ static uint32_t system_cycle_count;
 #ifdef STRIVE_68K_CYCLONE
 #include "Cyclone.h"
 struct Cyclone cpu_core;
-static int cpu_cycles_running;
+static int cpu_cycles_overrun;
 static int cpu_cycles_left;
 static uint8_t mfp_interrupt_offset;
 
@@ -33,7 +33,7 @@ static inline void system_cpu_stop_inner(void) {
 }
 
 void system_bus_error_inner(void) {
-    if (cpu_core.irq != 7) {
+    if (cpu_core.irq < 7) {
         iprintf("bus error (%02X)\n", cpu_core.srh);
 
         cpu_core.irq = 7;
@@ -42,13 +42,25 @@ void system_bus_error_inner(void) {
 }
 
 void system_mfp_interrupt(uint8_t id) {
-    cpu_core.irq = 6;
-    mfp_interrupt_offset = 0x40 + id; // TODO: vector base
+    if (cpu_core.irq < 6) {
+        cpu_core.irq = 6;
+        mfp_interrupt_offset = id;
+    }   
+}
+
+void system_mfp_interrupt_inner(uint8_t id) {
+    system_mfp_interrupt(id);
+    system_cpu_stop_inner();
 }
 
 static int system_cpu_irq_callback(int int_level) {
     cpu_core.irq = 0;
-    // iprintf("IRQ callback %d (%02X)\n", int_level, cpu_core.srh);
+#ifdef TRACE
+    if (int_level == 6)
+        fprintf(trace_file, "[!] IRQ callback %d (vb%02X, p%d)\n", int_level, atari_mfp.vector_base, mfp_interrupt_offset);
+    else
+        fprintf(trace_file, "[!] IRQ callback %d\n", int_level);
+#endif
 
     switch (int_level) {
     case 7:
@@ -56,7 +68,9 @@ static int system_cpu_irq_callback(int int_level) {
         return 2;
     case 6:
         // MFP interrupt
-        return mfp_interrupt_offset;
+        mfp_ack_interrupt(mfp_interrupt_offset);
+        // TODO: vector base
+        return (atari_mfp.vector_base & 0xF0) | mfp_interrupt_offset;
     default:
         // HBLANK, VBLANK interrupt
         return CYCLONE_INT_ACK_AUTOVECTOR;
@@ -91,8 +105,10 @@ static bool system_cpu_init(void) {
 
     // init components
     mfp_init();
+    screen_init();
     acia_init();
     wd1772_init();
+    ym2149_init();
 
     // init PC for 192K ROM
     CycloneReset(&cpu_core);
@@ -117,21 +133,19 @@ static bool system_cpu_init(void) {
 }
 
 uint32_t system_cycles(void) {
-    return system_cycle_count + cpu_cycles_running - cpu_core.cycles;
+    return system_cycle_count;
 }
 
 static void system_cpu_run(int cycles) {
-    do {
-        cpu_cycles_running = cycles + cpu_cycles_left;
-        cpu_core.cycles += cpu_cycles_running;
-        cycles = 0;
+    while (cycles > 0) {
+        cpu_core.cycles += cycles;
         cpu_cycles_left = 0;
+        uint32_t cycles_start = cpu_core.cycles;
         CycloneRun(&cpu_core);
-        system_cycle_count += cpu_cycles_running - cpu_cycles_left;
-    } while (cpu_cycles_left > 0);
-
-    system_cycle_count -= cpu_core.cycles;
-    cpu_core.cycles = 0;
+        uint32_t cycles_performed = (cycles_start - cpu_core.cycles) - cpu_cycles_left;
+        system_cycle_count += cycles_performed;
+        cycles -= cycles_performed;
+    }
 }
 #endif
 
@@ -145,20 +159,9 @@ bool system_init(void) {
 }
 
 bool system_frame(void) {
-    // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq);
+    // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
 
-#ifdef TRACE
-    for (int i = 0; i < 15000; i++) {
-        system_cpu_run(1);
-        uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
-        DisaPc = pc;
-        DisaGet();
-        fprintf(trace_file, "%06X\t[a0=%08X a1=%08X a2=%08X a3=%08X]\t%s\n", pc,
-            cpu_core.a[0], cpu_core.a[1], cpu_core.a[2], cpu_core.a[3],
-            DisaText);
-    }
-    fflush(trace_file);
-#else
+    acia_advance(512 * 313);
     for (int y = 0; y < 313; y++) {
         if (y < 200 && cpu_core.irq < 2) {
             // Emit HBLANK
@@ -167,9 +170,28 @@ bool system_frame(void) {
             // Emit VBLANK
             cpu_core.irq = 4;
         }
-        system_cpu_run(512);
-	mfp_advance(512);
-    }    
+        int cycles = system_cycle_count;
+        int cycles_expected = 512 - cpu_cycles_overrun;
+#ifdef TRACE
+        while ((system_cycle_count - cycles) < cycles_expected) {
+            system_cpu_run(1);
+            uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
+            DisaPc = pc;
+            DisaGet();
+            fprintf(trace_file, "%06X\t[a0=%08X a1=%08X a4=%08X a7=%08X i%d]\t%s\n", pc,
+                cpu_core.a[0], cpu_core.a[1], cpu_core.a[4], cpu_core.a[7], cpu_core.irq,
+                DisaText);
+        }
+#else
+        system_cpu_run(cycles_expected);
+#endif
+        cycles = system_cycle_count - cycles;
+        cpu_cycles_overrun = cycles - cycles_expected;
+        mfp_advance(cycles);
+    }
+
+#ifdef TRACE
+    fflush(trace_file);
 #endif
 
     // iprintf("%d cycles\n", system_cycle_count);

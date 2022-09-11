@@ -1,3 +1,5 @@
 #pragma once
 
-#define ROM_FILE "romfs:/etos06.img"
+#define STRIVE_68K_CYCLONE
+#define STRIVE_AY38910_FLUBBA
+#define ROM_FILE "romfs:/etos192uk.img"

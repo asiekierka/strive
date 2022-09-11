@@ -13,5 +13,6 @@ typedef struct screen {
 
 extern screen_t atari_screen;
 
+void screen_init(void);
 uint8_t screen_read8(uint8_t addr);
 void screen_write8(uint8_t addr, uint8_t value);

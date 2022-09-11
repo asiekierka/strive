@@ -10,7 +10,6 @@ void mfp_init(void) {
 
     // emulate color monitor
     atari_mfp.gpio |= MFP_COLOR_MONITOR;
-    atari_mfp.vector_base |= MFP_ENDINT_SOFTWARE;
 }
 
 uint8_t mfp_read8(uint8_t addr) {
@@ -103,7 +102,7 @@ static void mfp_update_timer_c() {
         uint32_t mfp_ticks_until = atari_mfp.timer.data_c * delay_modes[mode];
         uint32_t cpu_ticks_until = mfp_ticks_until * 13 / 4;
 
-        printf("timer c runs for %d ticks (%d x %d)\n", mfp_ticks_until, atari_mfp.timer.data_c, mode);
+        // iprintf("timer c runs for %d (%d) ticks (%d x %d)\n", mfp_ticks_until, cpu_ticks_until, atari_mfp.timer.data_c, mode);
 
         atari_mfp.timer.ticks_c = cpu_ticks_until;
         atari_mfp.timer.ticks_reset_c = cpu_ticks_until;
@@ -121,25 +120,58 @@ static void mfp_update_timer_d() {
     }
 }
 
+static void mfp_update_interrupts(void) {
+    uint32_t pending = atari_mfp.intr.pending & atari_mfp.intr.mask;
+    if (pending != 0) {
+        int offset = 31 - __builtin_clz(pending);
+        system_mfp_interrupt(offset);
+        if (atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE) {
+            atari_mfp.intr.in_service |= (1 << offset);
+            // TODO: clear in_service
+        }
+    }
+}
+
 void mfp_interrupt(uint8_t id) {
     uint16_t mask = 1 << id;
-    if ((atari_mfp.intr.enable & atari_mfp.intr.mask) & mask) {
-        if (!(atari_mfp.intr.in_service & mask)) {
-            atari_mfp.intr.in_service |= mask;
-            system_mfp_interrupt(id);
-        } else {
-            atari_mfp.intr.pending |= mask;
+    if (atari_mfp.intr.enable & mask) {
+        atari_mfp.intr.pending |= mask;
+        mfp_update_interrupts();
+    }
+}
+
+void mfp_ack_interrupt(uint8_t id) {
+    atari_mfp.intr.pending &= ~(1 << id);
+}
+
+static const uint8_t mfp_int_id_to_index[8] = {
+    0, 0, 0, 0, MFP_INT_B_ACIA, 0, 0, 0
+};
+
+void mfp_set_interrupt(uint8_t id) {
+    uint8_t mask = (1 << id);
+    // iprintf("mfp: received ext int set %d\n", id);
+    if (atari_mfp.gpio & mask) {
+        atari_mfp.gpio &= ~mask;
+        if (!(atari_mfp.active_edge & mask)) {
+            system_mfp_interrupt(mfp_int_id_to_index[id]);
+        }
+    }
+}
+
+void mfp_clear_interrupt(uint8_t id) {
+    uint8_t mask = (1 << id);
+    // iprintf("mfp: received ext int clr %d\n", id);
+    if (!(atari_mfp.gpio & mask)) {
+        atari_mfp.gpio |= mask;
+        if (atari_mfp.active_edge & mask) {
+            system_mfp_interrupt(mfp_int_id_to_index[id]);
         }
     }
 }
 
 void mfp_advance(uint32_t ticks) {
-    if (atari_mfp.intr.pending != 0) {
-        // iprintf("todo: handle pending interrupt\n");
-        atari_mfp.intr.pending = 0;
-    }
-
-    if (atari_mfp.timer.ctrl_a != 0) {
+    if ((atari_mfp.timer.ctrl_a & 0x0F) != 0 && atari_mfp.timer.data_a != 0) {
         atari_mfp.timer.ticks_a -= ticks;
         if (atari_mfp.timer.ticks_a <= 0) {
             atari_mfp.timer.ticks_a += atari_mfp.timer.ticks_reset_a;
@@ -147,7 +179,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if (atari_mfp.timer.ctrl_b != 0) {
+    if ((atari_mfp.timer.ctrl_b & 0x0F) != 0 && atari_mfp.timer.data_b != 0) {
         atari_mfp.timer.ticks_b -= ticks;
         if (atari_mfp.timer.ticks_b <= 0) {
             atari_mfp.timer.ticks_b += atari_mfp.timer.ticks_reset_b;
@@ -155,7 +187,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if ((atari_mfp.timer.ctrl_cd & 0x07) != 0) {
+    if ((atari_mfp.timer.ctrl_cd & 0x07) != 0 && atari_mfp.timer.data_c != 0) {
         atari_mfp.timer.ticks_c -= ticks;
         if (atari_mfp.timer.ticks_c <= 0) {
             atari_mfp.timer.ticks_c += atari_mfp.timer.ticks_reset_c;
@@ -163,7 +195,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if ((atari_mfp.timer.ctrl_cd & 0x70) != 0) {
+    if ((atari_mfp.timer.ctrl_cd & 0x70) != 0 && atari_mfp.timer.data_d != 0) {
         atari_mfp.timer.ticks_d -= ticks;
         if (atari_mfp.timer.ticks_d <= 0) {
             atari_mfp.timer.ticks_d += atari_mfp.timer.ticks_reset_d;
@@ -183,19 +215,25 @@ void mfp_write8(uint8_t addr, uint8_t value) {
         case 0x09:
             atari_mfp.intr.enable = (atari_mfp.intr.enable & 0xFF00) | value; break;
         case 0x0B:
-            atari_mfp.intr.pending = (atari_mfp.intr.pending & 0xFF) | (value << 8); break;
+            atari_mfp.intr.pending = (atari_mfp.intr.pending & 0xFF) | (value << 8); mfp_update_interrupts(); break;
         case 0x0D:
-            atari_mfp.intr.pending = (atari_mfp.intr.pending & 0xFF00) | value; break;
+            atari_mfp.intr.pending = (atari_mfp.intr.pending & 0xFF00) | value; mfp_update_interrupts(); break;
         case 0x0F:
-            atari_mfp.intr.in_service &= (atari_mfp.intr.in_service & 0xFF) | (value << 8); break;
+            if (!(atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE)) break;
+            atari_mfp.intr.in_service &= (atari_mfp.intr.in_service & 0xFF) | (value << 8); mfp_update_interrupts(); break;
         case 0x11:
-            atari_mfp.intr.in_service &= (atari_mfp.intr.in_service & 0xFF00) | value; break;
+            if (!(atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE)) break;
+            atari_mfp.intr.in_service &= (atari_mfp.intr.in_service & 0xFF00) | value; mfp_update_interrupts(); break;
         case 0x13:
-            atari_mfp.intr.mask = (atari_mfp.intr.mask & 0xFF) | (value << 8); break;
+            atari_mfp.intr.mask = (atari_mfp.intr.mask & 0xFF) | (value << 8); mfp_update_interrupts(); break;
         case 0x15:
-            atari_mfp.intr.mask = (atari_mfp.intr.mask & 0xFF00) | value; break;
+            atari_mfp.intr.mask = (atari_mfp.intr.mask & 0xFF00) | value; mfp_update_interrupts(); break;
         case 0x17:
-            atari_mfp.vector_base = value; break;
+            atari_mfp.vector_base = value;
+            if (!(atari_mfp.vector_base & MFP_IN_SERVICE_ENABLE)) {
+                atari_mfp.intr.in_service = 0;
+            }
+            break;
         case 0x19:
             atari_mfp.timer.ctrl_a = value & 0x0F; mfp_update_timer_a(); break;
         case 0x1B:

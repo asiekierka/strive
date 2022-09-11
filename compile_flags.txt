@@ -3,7 +3,7 @@
 -I/opt/devkitpro/portlibs/3ds/include
 -Isrc
 -Isrc/3ds
+-Ivendor/ay38910-flubba
 -Ivendor/cyclone
 -Ivendor/cyclone/Disa
 -D__3DS__
--DSTRIVE_68K_CYCLONE

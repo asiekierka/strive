@@ -33,8 +33,8 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build_3ds
-SOURCES		:=	src src/3ds vendor/cyclone/Disa
-INCLUDES	:=	src src/3ds vendor/cyclone vendor/cyclone/Disa
+SOURCES		:=	src src/3ds vendor/ay38910-flubba vendor/cyclone/Disa
+INCLUDES	:=	src src/3ds vendor/ay38910-flubba vendor/cyclone vendor/cyclone/Disa
 ROMFS		:=	src/3ds/romfs
 GFXBUILD	:=	$(ROMFS)/gfx
 
@@ -47,7 +47,7 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -DSTRIVE_68K_CYCLONE
+CFLAGS	+=	$(INCLUDE) -D__3DS__
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 

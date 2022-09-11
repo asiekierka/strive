@@ -5,8 +5,10 @@
 
 #define MFP_COLOR_MONITOR 0x80
 
-#define MFP_ENDINT_SOFTWARE 0x08
- 
+#define MFP_IN_SERVICE_ENABLE 0x08
+
+#define MFP_INT_ID_ACIA 4
+
 #define MFP_INT_B_CENTRONICS_BUSY 0
 #define MFP_INT_B_RS232_DCD       1
 #define MFP_INT_B_RS232_CTS       2
@@ -67,4 +69,7 @@ void mfp_init(void);
 uint8_t mfp_read8(uint8_t addr);
 void mfp_write8(uint8_t addr, uint8_t value);
 void mfp_interrupt(uint8_t id);
+void mfp_ack_interrupt(uint8_t id);
+void mfp_set_interrupt(uint8_t id);
+void mfp_clear_interrupt(uint8_t id);
 void mfp_advance(uint32_t ticks);

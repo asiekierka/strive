@@ -1,6 +1,11 @@
 #include "screen.h"
+#include <string.h>
 
 screen_t atari_screen;
+
+void screen_init(void) {
+    memset(&atari_screen, 0, sizeof(screen_t));
+}
 
 uint8_t screen_read8(uint8_t addr) {
     if ((addr & 0xE0) == 0x40) {

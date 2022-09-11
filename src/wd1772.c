@@ -9,7 +9,7 @@ void wd1772_init(void) {
 
 uint8_t wd1772_read8(uint8_t addr) {
     // TODO
-    iprintf("todo: wd1772_read8 %02X\n", addr);
+    // iprintf("todo: wd1772_read8 %02X\n", addr);
     switch (addr) {
     case 0x04:
         return 0xFF;
@@ -30,7 +30,7 @@ uint8_t wd1772_read8(uint8_t addr) {
 
 void wd1772_write8(uint8_t addr, uint8_t value) {
     // TODO
-    iprintf("todo: wd1772_write8 %02X = %02X\n", addr, value);
+    // iprintf("todo: wd1772_write8 %02X = %02X\n", addr, value);
     switch (addr) {
     case 0x05:
         if (atari_wd1772.dma_mode & 0x10) {

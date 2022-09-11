@@ -4,3 +4,6 @@
 [submodule "vendor/cyclone"]
 	path = vendor/cyclone
 	url = https://github.com/notaz/cyclone68000
+[submodule "vendor/ay38910-flubba"]
+	path = vendor/ay38910-flubba
+	url = https://github.com/FluBBaOfWard/AY38910/
