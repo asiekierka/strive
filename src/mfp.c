@@ -61,7 +61,7 @@ uint8_t mfp_read8(uint8_t addr) {
         case 0x2B:
             return atari_mfp.uart.rx_status;
         case 0x2D:
-            return atari_mfp.uart.tx_status;
+            return 0x81;
         case 0x2F:
             return atari_mfp.uart.data;
         default:
@@ -104,7 +104,7 @@ static void mfp_update_timer_c() {
         uint32_t mfp_ticks_until = atari_mfp.timer.data_c * delay_modes[mode];
         uint32_t cpu_ticks_until = mfp_ticks_until * 13 / 4;
 
-        // iprintf("timer c runs for %d (%d) ticks (%d x %d)\n", mfp_ticks_until, cpu_ticks_until, atari_mfp.timer.data_c, mode);
+        // debug_printf("timer c runs for %d (%d) ticks (%d x %d)\n", mfp_ticks_until, cpu_ticks_until, atari_mfp.timer.data_c, mode);
 
         atari_mfp.timer.ticks_c = cpu_ticks_until;
         atari_mfp.timer.ticks_reset_c = cpu_ticks_until;
@@ -152,7 +152,7 @@ static const uint8_t mfp_int_id_to_index[8] = {
 
 void mfp_set_interrupt(uint8_t id) {
     uint8_t mask = (1 << id);
-    // iprintf("mfp: received ext int set %d\n", id);
+    // debug_printf("mfp: received ext int set %d\n", id);
     if (atari_mfp.gpio & mask) {
         atari_mfp.gpio &= ~mask;
         if (!(atari_mfp.active_edge & mask)) {
@@ -163,7 +163,7 @@ void mfp_set_interrupt(uint8_t id) {
 
 void mfp_clear_interrupt(uint8_t id) {
     uint8_t mask = (1 << id);
-    // iprintf("mfp: received ext int clr %d\n", id);
+    // debug_printf("mfp: received ext int clr %d\n", id);
     if (!(atari_mfp.gpio & mask)) {
         atari_mfp.gpio |= mask;
         if (atari_mfp.active_edge & mask) {
@@ -261,6 +261,6 @@ void mfp_write8(uint8_t addr, uint8_t value) {
         case 0x2D:
             atari_mfp.uart.tx_status = value; break;
         case 0x2F:
-            atari_mfp.uart.data = value; break;
+            debug_printf("%c", value); break;
     }
 }

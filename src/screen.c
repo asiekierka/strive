@@ -1,5 +1,6 @@
-#include "screen.h"
 #include <string.h>
+#include "platform.h"
+#include "screen.h"
 
 screen_t atari_screen;
 
@@ -64,6 +65,8 @@ void screen_write8(uint8_t addr, uint8_t value) {
         case 0x0A:
             atari_screen.sync_mode = value; break;
         case 0x60:
-            atari_screen.resolution = value; break;
+            atari_screen.resolution = value;
+            platform_gfx_on_palette_update();
+            break;
     }
 }

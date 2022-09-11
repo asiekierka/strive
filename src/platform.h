@@ -19,6 +19,8 @@ void platform_wait_key(void);
 void platform_wait_vblank(void);
 void platform_update_input(void);
 
+uint32_t platform_get_ticks(void);
+
 /* == Graphics == */
 
 void platform_gfx_on_palette_update(void);

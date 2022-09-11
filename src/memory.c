@@ -4,11 +4,16 @@
 #include "memory.h"
 #include "mfp.h"
 #include "platform.h"
+#include "platform_config.h"
 #include "screen.h"
 #include "system.h"
 #include "wd1772.h"
 #include "ym2149.h"
 
+#ifdef USE_VIDEO_MEMORY_DIRTY
+NDS_DTCM_BSS
+uint8_t video_memory_dirty[448];
+#endif
 NDS_DTCM_BSS
 uint8_t *memory_ram;
 NDS_DTCM_BSS
@@ -19,7 +24,8 @@ uint8_t memory_io_bank_cfg = 0b00001010;
 
 NDS_ITCM_CODE
 static uint8_t io_read8(uint32_t address) {
-    // if (address != 0xFFFA11) iprintf("I/O read %06lX\n", address);
+    if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O read %06lX\n", address);
+    
     switch (address & 0xFFFFC0) {
     case 0xFFFA00:
         return mfp_read8(address);
@@ -37,7 +43,7 @@ static uint8_t io_read8(uint32_t address) {
         case 0xFF8001:
             return memory_io_bank_cfg;
         default:
-            iprintf("unknown I/O read %06lX\n", address);
+            debug_printf("unknown I/O read %06lX\n", address);
             platform_wait_key();
             system_bus_error_inner();
             return 0;
@@ -52,7 +58,7 @@ static uint16_t io_read16(uint32_t address) {
 
 NDS_ITCM_CODE
 static void io_write8(uint32_t address, uint8_t value) {
-    // if (address != 0xFFFA11) iprintf("I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
+    if (address != 0xFFFA11 && (address < 0xFFFA27 || address >= 0xFFFA30)) debug_printf("I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
 
     switch (address & 0xFFFFC0) {
     case 0xFFFA00:
@@ -77,7 +83,7 @@ static void io_write8(uint32_t address, uint8_t value) {
             memory_io_bank_cfg = value;
             break;
         default:
-            iprintf("unknown I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
+            debug_printf("unknown I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
             platform_wait_key();
             system_bus_error_inner();
             break;
@@ -139,26 +145,32 @@ uint32_t memory_read32(uint32_t address) {
 NDS_ITCM_CODE
 void memory_write8(uint32_t address, uint8_t value) {
     if (address < 0x400000) {
+#ifdef USE_VIDEO_MEMORY_DIRTY
+        video_memory_dirty[address >> 15] = 1;
+#endif
         memory_ram[address ^ 1] = value;
     } else if (address < 0xE00000) {
         system_bus_error_inner();
     } else if (/* (address >= 0xF00000 && address < 0xFA0000) ||  */address >= 0xFF0000) {
         return io_write8(address, value);
     } else {
-        // iprintf("unknown write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
+        // debug_printf("unknown write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
     }
 }
 
 NDS_ITCM_CODE
 void memory_write16(uint32_t address, uint16_t value) {
     if (address < 0x400000) {
+#ifdef USE_VIDEO_MEMORY_DIRTY
+        video_memory_dirty[address >> 15] = 1;
+#endif
         *((uint16_t*) &memory_ram[address]) = value;
     } else if (address < 0xE00000) {
         system_bus_error_inner();
     } else if (/* (address >= 0xF00000 && address < 0xFA0000) ||  */address >= 0xFF0000) {
         return io_write16(address, value);
     } else {
-        // iprintf("unknown write %06lX = %04X\n", address, ((uint32_t) value) & 0xFFFF);
+        // debug_printf("unknown write %06lX = %04X\n", address, ((uint32_t) value) & 0xFFFF);
     }
 }
 

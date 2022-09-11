@@ -2,9 +2,13 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "platform.h"
 
 extern uint8_t *memory_ram;
 extern uint8_t *memory_rom;
+#ifdef USE_VIDEO_MEMORY_DIRTY
+extern uint8_t video_memory_dirty[448];
+#endif
 extern uint32_t memory_ram_mask;
 extern uint8_t memory_io_bank_cfg;
 

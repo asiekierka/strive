@@ -11,7 +11,8 @@
 static bool palette_changed = false;
 static uint32_t palette_mini_lut[16];
 static uint32_t palette_mono_lut[4];
-static const uint8_t color_map_st[8] = {
+static const uint8_t color_map_st[16] = {
+    0, 36, 73, 109, 146, 182, 219, 255,
     0, 36, 73, 109, 146, 182, 219, 255
 };
 static const uint8_t color_map_ste[16] = {
@@ -76,14 +77,16 @@ void platform_gfx_on_palette_update(void) {
 static void update_palette(void) {
     if (!palette_changed) return;
 
+    // TODO: STE mode
+    const uint8_t *color_map = color_map_st;
+
     for (int i = 0; i < 16; i++) {
-        // TODO: STE mode
         uint16_t entry = atari_screen.palette[i];
         palette_mini_lut[i] =
             0x000000FF
-            | (color_map_st[entry & 0x7] << 8)
-            | (color_map_st[(entry >> 4) & 0x7] << 16)
-            | (color_map_st[(entry >> 8) & 0x7] << 24);
+            | (color_map[entry & 0xF] << 8)
+            | (color_map[(entry >> 4) & 0xF] << 16)
+            | (color_map[(entry >> 8) & 0xF] << 24);
     }
 
     uint8_t r0 = palette_mini_lut[0] >> 24;
@@ -113,7 +116,6 @@ void platform_gfx_draw_frame(void) {
 
     uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
 
-    // TODO: Optimize, implement other drawing modes than 0
     if (atari_screen.resolution == 2) {
         for (int y = 0; y < 200; y++) {
             uint32_t *dst = screen_buf + (1024 * y);
@@ -171,6 +173,7 @@ void platform_gfx_draw_frame(void) {
 	);
 
     C3D_FrameBegin(0);
+    C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, palette_mini_lut[0], 0);
 
 	xmin = (400 - 320) / 2.0f;
 	ymin = (240 - 200) / 2.0f;

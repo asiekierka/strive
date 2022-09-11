@@ -1,4 +1,5 @@
 #include "platform.h"
+#include "3ds/os.h"
 #include "acia.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -48,6 +49,10 @@ void platform_wait_key(void) {
 
 void platform_wait_vblank(void) {
     gspWaitForVBlank();
+}
+
+uint32_t platform_get_ticks(void) {
+    return svcGetSystemTick();
 }
 
 static touchPosition starting_touch_position, last_touch;

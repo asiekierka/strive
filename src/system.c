@@ -16,6 +16,8 @@
 #ifdef TRACE
 #include "Disa.h"
 static FILE* trace_file;
+
+#define trace_printf(...) fprintf(trace_file, __VA_ARGS__)
 #endif
 
 static uint32_t system_cycle_count;
@@ -35,7 +37,7 @@ static inline void system_cpu_stop_inner(void) {
 
 void system_bus_error_inner(void) {
     if (cpu_core.irq < 7) {
-        iprintf("bus error (%02X)\n", cpu_core.srh);
+        debug_printf("bus error (%02X)\n", cpu_core.srh);
 
         cpu_core.irq = 7;
         system_cpu_stop_inner();
@@ -58,9 +60,9 @@ static int system_cpu_irq_callback(int int_level) {
     cpu_core.irq = 0;
 #ifdef TRACE
     if (int_level == 6)
-        fprintf(trace_file, "[!] IRQ callback %d (vb%02X, p%d)\n", int_level, atari_mfp.vector_base, mfp_interrupt_offset);
+        trace_printf("[!] IRQ callback %d (vb%02X, p%d)\n", int_level, atari_mfp.vector_base, mfp_interrupt_offset);
     else
-        fprintf(trace_file, "[!] IRQ callback %d\n", int_level);
+        trace_printf("[!] IRQ callback %d\n", int_level);
 #endif
 
     switch (int_level) {
@@ -122,7 +124,7 @@ static bool system_cpu_init(void) {
     system_cycle_count = 0;
     cpu_cycles_left = 0;
 
-    iprintf("init! membase = %08lX, pc = %06lX\n", cpu_core.membase, (cpu_core.pc - cpu_core.membase) & 0xFFFFFF);
+    debug_printf("init! membase = %08lX, pc = %06lX\n", cpu_core.membase, (cpu_core.pc - cpu_core.membase) & 0xFFFFFF);
 
 #ifdef TRACE
     trace_file = fopen("/strive_trace.txt", "w");    
@@ -162,7 +164,7 @@ bool system_init(void) {
 
 NDS_ITCM_CODE
 bool system_frame(void) {
-    // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
+    // debug_printf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
 
     platform_gfx_draw_frame();
 
@@ -183,7 +185,7 @@ bool system_frame(void) {
             uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
             DisaPc = pc;
             DisaGet();
-            fprintf(trace_file, "%06X\t[a0=%08X a1=%08X a4=%08X a7=%08X i%d]\t%s\n", pc,
+            trace_printf("%06X\t[a0=%08X a1=%08X a4=%08X a7=%08X i%d]\t%s\n", pc,
                 cpu_core.a[0], cpu_core.a[1], cpu_core.a[4], cpu_core.a[7], cpu_core.irq,
                 DisaText);
         }
@@ -199,7 +201,7 @@ bool system_frame(void) {
     fflush(trace_file);
 #endif
 
-    // iprintf("%d cycles\n", system_cycle_count);
+    // debug_printf("%d cycles\n", system_cycle_count);
 
     return true;
 }

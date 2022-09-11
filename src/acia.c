@@ -35,7 +35,7 @@ static void acia_update_interrupt(bool trig) {
 
 uint8_t acia_read8(uint8_t addr) {
     // TODO
-    // iprintf("acia_read8: %02X\n", addr);
+    // debug_printf("acia_read8: %02X\n", addr);
     switch (addr) {
     case 0x00:
         return (atari_acia.ikbd_out_len > 0 ? 1 : 0) | atari_acia.ikbd_status;
@@ -43,7 +43,7 @@ uint8_t acia_read8(uint8_t addr) {
         if (atari_acia.ikbd_out_len > 0) {
             uint8_t res = atari_acia.ikbd_out[0];
             if ((--atari_acia.ikbd_out_len) == 0) {
-                iprintf("acia: emptied buffer\n");
+                debug_printf("acia: emptied buffer\n");
                 acia_update_interrupt(false);
             } else {
                 memmove(atari_acia.ikbd_out, atari_acia.ikbd_out + 1, atari_acia.ikbd_out_len);
@@ -116,7 +116,7 @@ static void acia_ikbd_recv(uint8_t value) {
         acia_ikbd_send_done();
         break;
     case 0x08: /* Set relative mouse position reporting */
-        iprintf("acia: set mouse mode to relative\n");
+        debug_printf("acia: set mouse mode to relative\n");
         atari_acia.mouse_mode = ACIA_MOUSE_MODE_RELATIVE;
         atari_acia.mouse_x = 160;
         atari_acia.mouse_y = 100;
@@ -131,7 +131,7 @@ static void acia_ikbd_recv(uint8_t value) {
         break;
     case 0x09: /* Set absolute mouse positioning */
         if (atari_acia.ikbd_in_len < 5) return;
-        iprintf("acia: set mouse mode to absolute\n");
+        debug_printf("acia: set mouse mode to absolute\n");
         atari_acia.mouse_mode = ACIA_MOUSE_MODE_ABSOLUTE;
         atari_acia.mouse_abs_xmax = (atari_acia.ikbd_in[1] << 8) | atari_acia.ikbd_in[2];
         atari_acia.mouse_abs_ymax = (atari_acia.ikbd_in[3] << 8) | atari_acia.ikbd_in[4];
@@ -142,7 +142,7 @@ static void acia_ikbd_recv(uint8_t value) {
         break;
     case 0x0A: /* Set absolute mouse keycode mode */
         if (atari_acia.ikbd_in_len < 3) return;
-        iprintf("acia: set mouse mode to keycode\n");
+        debug_printf("acia: set mouse mode to keycode\n");
         atari_acia.mouse_mode = ACIA_MOUSE_MODE_KEYCODE;
         atari_acia.mouse_key_dx = atari_acia.ikbd_in[1];
         atari_acia.mouse_key_dy = atari_acia.ikbd_in[2];
@@ -189,7 +189,7 @@ static void acia_ikbd_recv(uint8_t value) {
         acia_ikbd_send_done();
         break;
     case 0x11: /* Resume */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x12: /* Disable mouse */
         atari_acia.mouse_mode = ACIA_MOUSE_MODE_DISABLED;
@@ -199,35 +199,35 @@ static void acia_ikbd_recv(uint8_t value) {
         acia_ikbd_send_done();
         break;
     case 0x13: /* Pause output */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x14: /* Set joystick event reporting */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x15: /* Set joystick interrogation mode */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x16: /* Joystick interrogate */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x17: /* Set joystick monitoring */
         if (atari_acia.ikbd_in_len < 2) return;
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x18: /* Set fire button monitoring */
         if (atari_acia.ikbd_in_len < 2) return;
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x19: /* Set joystick keycode mode */
         if (atari_acia.ikbd_in_len < 7) return;
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x1A: /* Disable joysticks */
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x1B: /* Time-of-day clock set */
         if (atari_acia.ikbd_in_len < 7) return;
-        iprintf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
         break;
     case 0x1C: /* Interrogate time-of-day clock */
         {
@@ -255,7 +255,7 @@ static void acia_ikbd_recv(uint8_t value) {
 }
 
 void acia_write8(uint8_t addr, uint8_t value) {
-    // iprintf("acia_write8: %02X = %02X\n", addr, value);
+    // debug_printf("acia_write8: %02X = %02X\n", addr, value);
     switch (addr) {
     case 0x00:
         atari_acia.ikbd_control = value; break;
@@ -275,7 +275,7 @@ void acia_write8(uint8_t addr, uint8_t value) {
 }
 
 static void acia_ikbd_send_mouse_relative(int8_t xd, int8_t yd) {
-    // printf("acia: send rel %d %d\n", xd, yd);
+    // debug_printf("acia: send rel %d %d\n", xd, yd);
     acia_ikbd_send(0xF8 | ((atari_acia.mouse_button & ACIA_MOUSE_BUTTON_LEFT_DOWN) ? 2 : 0) | ((atari_acia.mouse_button & ACIA_MOUSE_BUTTON_RIGHT_DOWN) ? 1 : 0));
     acia_ikbd_send(xd);
     acia_ikbd_send(yd);
