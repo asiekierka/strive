@@ -25,14 +25,12 @@ void _platform_gfx_init(void) {
     vramSetBankE(VRAM_E_MAIN_BG);
 
     REG_BG2CNT = BG_BMP8_512x256 | BG_BMP_BASE(0);
-    REG_BG2PA = 320;
+    REG_BG2PA = -320;
     REG_BG2PB = 0;
     REG_BG2PC = 0;
     REG_BG2PD = 267;
-    REG_BG2X = 0;
+    REG_BG2X = 320 << 8;
     REG_BG2Y = 0;
-    REG_BG2HOFS = 0;
-    REG_BG2VOFS = 0;
 }
 
 void _platform_gfx_exit(void) {
@@ -58,19 +56,30 @@ static void update_palette(void) {
     palette_changed = false;
 }
 
-#define COMBINE_4PX_ST_LOW() \
-    ((bp0 >> 15) | ((bp1 >> 14) & 0x02) \
-        | ((bp2 >> 13) & 0x04) | ((bp3 >> 12) & 0x08) \
-        | ((bp0 >> 6) & 0x100) | ((bp1 >> 5) & 0x200) \
-        | ((bp2 >> 4) & 0x400) | ((bp3 >> 3) & 0x800) \
-        | ((bp0 << 3) & 0x10000) | ((bp1 << 4) & 0x20000) \
-        | ((bp2 << 5) & 0x40000) | ((bp3 << 6) & 0x80000) \
-        | ((bp0 << 12) & 0x1000000) | ((bp1 << 13) & 0x2000000) \
-        | ((bp2 << 14) & 0x4000000) | ((bp3 << 15) & 0x8000000))
+/* #define COMBINE_4PX_ST_LOW() \
+    ((bp & 0x8040201) | ((bp >> 7) & 0x02) \
+        | ((bp >> 14) & 0x04) | ((bp >> 21) & 0x08) \
+        | ((bp << 7) & 0x100) \
+        | ((bp >> 7) & 0x400) | ((bp >> 14) & 0x800) \
+        | ((bp << 14) & 0x10000) | ((bp << 7) & 0x20000) \
+        | ((bp >> 7) & 0x80000) \
+        | ((bp << 21) & 0x1000000) | ((bp << 14) & 0x2000000) \
+        | ((bp << 7) & 0x4000000)) */
+#define COMBINE_4PX_ST_LOW() ( \
+        (bp & 0x8040201) \
+        | ((bp >> 7) & 0x80402) \
+        | ((bp >> 14) & 0x804) \
+        | ((bp >> 21) & 0x8) \
+        | ((bp << 7) & 0x4020100) \
+        | ((bp << 14) & 0x2010000) \
+        | ((bp << 21) & 0x1000000) \
+    )
 
 NDS_ITCM_CODE
 __attribute__((optimize("-O3")))
 void platform_gfx_draw_frame(void) {
+    uint32_t ticks = _TIMER_TICKS(0);
+
     update_palette();
 
     uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
@@ -79,22 +88,25 @@ void platform_gfx_draw_frame(void) {
         // TODO
     } else {
         uint32_t *dst = ((uint32_t*) BG_GFX);
+        src -= 168;
         for (int y = 0; y < 200; y++) {
-            for (int x = 0; x < 320; x += 16, src += 8, dst += 4) {
-                uint16_t bp0 = src[0] | (src[1] << 8);
-                uint16_t bp1 = src[2] | (src[3] << 8);
-                uint16_t bp2 = src[4] | (src[5] << 8);
-                uint16_t bp3 = src[6] | (src[7] << 8);
+            src += 320;
+            #pragma GCC unroll 20
+            for (int x = 0; x < 320; x += 16, src -= 8, dst += 4) {
+                uint32_t bp;
+                bp = src[0] | (src[2] << 8) | (src[4] << 16) | (src[6]) << 24;
                 dst[0] = COMBINE_4PX_ST_LOW();
-                bp0 <<= 4; bp1 <<= 4; bp2 <<= 4; bp3 <<= 4;
+                bp >>= 4;
                 dst[1] = COMBINE_4PX_ST_LOW();
-                bp0 <<= 4; bp1 <<= 4; bp2 <<= 4; bp3 <<= 4;
+                bp = src[1] | (src[3] << 8) | (src[5] << 16) | (src[7]) << 24;
                 dst[2] = COMBINE_4PX_ST_LOW();
-                bp0 <<= 4; bp1 <<= 4; bp2 <<= 4; bp3 <<= 4;
+                bp >>= 4;
                 dst[3] = COMBINE_4PX_ST_LOW();
-                bp0 <<= 4; bp1 <<= 4; bp2 <<= 4; bp3 <<= 4;
             }
             dst += (512 - 320) >> 2;
         }
     }
+
+    ticks = _TIMER_TICKS(0) - ticks;
+    // iprintf("%d ticks\n", ticks);
 }

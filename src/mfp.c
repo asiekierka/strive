@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "mfp.h"
+#include "platform.h"
 #include "system.h"
 
 mfp_t atari_mfp;
@@ -12,6 +13,7 @@ void mfp_init(void) {
     atari_mfp.gpio |= MFP_COLOR_MONITOR;
 }
 
+NDS_ITCM_CODE
 uint8_t mfp_read8(uint8_t addr) {
     switch (addr) {
         case 0x01:
@@ -170,6 +172,7 @@ void mfp_clear_interrupt(uint8_t id) {
     }
 }
 
+NDS_ITCM_CODE
 void mfp_advance(uint32_t ticks) {
     if ((atari_mfp.timer.ctrl_a & 0x0F) != 0 && atari_mfp.timer.data_a != 0) {
         atari_mfp.timer.ticks_a -= ticks;
@@ -204,6 +207,7 @@ void mfp_advance(uint32_t ticks) {
     }
 }
 
+NDS_ITCM_CODE
 void mfp_write8(uint8_t addr, uint8_t value) {
     switch (addr) {
         case 0x03:

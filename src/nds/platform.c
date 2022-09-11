@@ -17,6 +17,12 @@ bool platform_init(void) {
     fatInitDefault();
     // nitroFSInit("nitro:/");
 
+	// Timers 0-1 - profiling timers
+	TIMER0_DATA = 0;
+	TIMER1_DATA = 0;
+	TIMER0_CR = TIMER_ENABLE | TIMER_DIV_1;
+	TIMER1_CR = TIMER_ENABLE | TIMER_CASCADE;
+
     return true;
 }
 

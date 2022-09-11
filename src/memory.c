@@ -17,6 +17,7 @@ NDS_DTCM_DATA
 uint32_t memory_ram_mask = (1 * 1024 * 1024) - 1;
 uint8_t memory_io_bank_cfg = 0b00001010;
 
+NDS_ITCM_CODE
 static uint8_t io_read8(uint32_t address) {
     // if (address != 0xFFFA11) iprintf("I/O read %06lX\n", address);
     switch (address & 0xFFFFC0) {
@@ -44,10 +45,12 @@ static uint8_t io_read8(uint32_t address) {
     }
 }
 
+NDS_ITCM_CODE
 static uint16_t io_read16(uint32_t address) {
     return io_read8(address) | (io_read8(address + 1) << 8);
 }
 
+NDS_ITCM_CODE
 static void io_write8(uint32_t address, uint8_t value) {
     // if (address != 0xFFFA11) iprintf("I/O write %06lX = %02X\n", address, ((uint32_t) value) & 0xFF);
 
@@ -82,6 +85,7 @@ static void io_write8(uint32_t address, uint8_t value) {
     }
 }
 
+NDS_ITCM_CODE
 static void io_write16(uint32_t address, uint16_t value) {
     io_write8(address, value >> 8);
     io_write8(address + 1, value);

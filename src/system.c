@@ -160,11 +160,12 @@ bool system_init(void) {
     return true;
 }
 
+NDS_ITCM_CODE
 bool system_frame(void) {
     // iprintf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
 
     platform_gfx_draw_frame();
-    
+
     acia_advance(512 * 313);
     for (int y = 0; y < 313; y++) {
         if (y < 200 && cpu_core.irq < 2) {

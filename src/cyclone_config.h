@@ -168,7 +168,11 @@
  * Note: checkpc() must not clear least significant bit of rebased address
  * for this to work, as checks are performed after calling checkpc().
  */
+#ifdef __3DS__
 #define EMULATE_ADDRESS_ERRORS_JUMP 1
+#else
+#define EMULATE_ADDRESS_ERRORS_JUMP 0
+#endif
 
 /*
  * If enabled, address error exception will be generated if 68k code tries to
