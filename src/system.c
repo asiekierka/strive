@@ -12,11 +12,9 @@
 #include "wd1772.h"
 #include "ym2149.h"
 
-// #define TRACE
-
 #ifdef TRACE
 #include "Disa.h"
-static FILE* trace_file;
+FILE* trace_file;
 
 #define trace_printf(...) fprintf(trace_file, __VA_ARGS__)
 #endif
@@ -62,7 +60,7 @@ void system_mfp_interrupt_inner(uint8_t id) {
 
 static int system_cpu_irq_callback(int int_level) {
     cpu_core.irq = 0;
-#ifdef TRACE
+#ifdef TRACE_CPU
     if (int_level == 6)
         trace_printf("[!] IRQ callback %d (vb%02X, p%d)\n", int_level, atari_mfp.vector_base, mfp_interrupt_offset);
     else
@@ -84,7 +82,7 @@ static int system_cpu_irq_callback(int int_level) {
     }
 }
 
-#ifdef TRACE
+#ifdef TRACE_CPU
 static uint16_t system_disa_word(uint32_t a) {
     return memory_read16(a);
 }
@@ -117,7 +115,7 @@ static bool system_cpu_init(void) {
     wd1772_init();
     ym2149_init();
 
-    atari_wd1772.fdc_a.file = fopen("/disk.st", "rb");
+    wd_fdc_open(&atari_wd1772.fdc_a, fopen("/disk.st", "rb"), "disk.st");
 
     // init PC for 192K ROM
     CycloneReset(&cpu_core);
@@ -134,8 +132,10 @@ static bool system_cpu_init(void) {
 
 #ifdef TRACE
     trace_file = fopen("/strive_trace.txt", "w");    
+#ifdef TRACE_CPU
     DisaWord = system_disa_word;
     DisaText = malloc(1024);
+#endif
 #endif
 
     return true;
@@ -185,7 +185,7 @@ bool system_frame(void) {
         }
         int cycles = system_cycle_count;
         int cycles_expected = 512 - cpu_cycles_overrun;
-#ifdef TRACE
+#ifdef TRACE_CPU
         while ((system_cycle_count - cycles) < cycles_expected) {
             system_cpu_run(1);
             uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;

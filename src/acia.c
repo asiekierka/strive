@@ -43,7 +43,7 @@ uint8_t acia_read8(uint8_t addr) {
         if (atari_acia.ikbd_out_len > 0) {
             uint8_t res = atari_acia.ikbd_out[0];
             if ((--atari_acia.ikbd_out_len) == 0) {
-                debug_printf("acia: emptied buffer\n");
+                // debug_printf("acia: emptied buffer\n");
                 acia_update_interrupt(false);
             } else {
                 memmove(atari_acia.ikbd_out, atari_acia.ikbd_out + 1, atari_acia.ikbd_out_len);

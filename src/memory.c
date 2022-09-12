@@ -44,7 +44,7 @@ static uint8_t io_read8(uint32_t address) {
             return memory_io_bank_cfg;
         default:
             debug_printf("unknown I/O read %06lX\n", address);
-            platform_wait_key();
+            // platform_wait_key();
             system_bus_error_inner();
             return 0;
         }
@@ -52,8 +52,8 @@ static uint8_t io_read8(uint32_t address) {
 }
 
 NDS_ITCM_CODE
-static uint16_t io_read16(uint32_t address) {
-    return io_read8(address) | (io_read8(address + 1) << 8);
+static inline uint16_t io_read16(uint32_t address) {
+    return io_read8(address + 1) | (io_read8(address) << 8);
 }
 
 NDS_ITCM_CODE
@@ -84,7 +84,7 @@ static void io_write8(uint32_t address, uint8_t value) {
             break;
         default:
             debug_printf("unknown I/O write %06lX = %02lX\n", address, ((uint32_t) value) & 0xFF);
-            platform_wait_key();
+            // platform_wait_key();
             system_bus_error_inner();
             break;
         }
@@ -92,7 +92,7 @@ static void io_write8(uint32_t address, uint8_t value) {
 }
 
 NDS_ITCM_CODE
-static void io_write16(uint32_t address, uint16_t value) {
+static inline void io_write16(uint32_t address, uint16_t value) {
     io_write8(address, value >> 8);
     io_write8(address + 1, value);
 }

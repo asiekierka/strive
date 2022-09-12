@@ -20,10 +20,20 @@
 #define FDC_STATUS_WRITE_PROTECT    0x40
 #define FDC_STATUS_MOTOR_ON         0x80
 
+struct wd_fdc;
+
+typedef struct {
+    bool (*read_sector)(struct wd_fdc *fdc, int head, int side, int sector, uint8_t *buffer);
+} wd_fdc_format_t;
+
 typedef struct wd_fdc {
     FILE *file;
-
-    uint8_t control, track_idx, sector_idx, status;
+    uint16_t f_sectors_per_track;
+    uint16_t f_sides;
+    uint16_t f_starting_track;
+    uint16_t f_ending_track;
+    uint16_t f_head;
+    const wd_fdc_format_t *f_format;
 } wd_fdc_t;
 
 typedef struct wd1772 {
@@ -31,10 +41,15 @@ typedef struct wd1772 {
     uint16_t dma_mode;
     uint32_t dta;
     uint8_t sector_count;
+
+    uint8_t fdc_control, fdc_track_idx, fdc_sector_idx, fdc_data;
+    uint8_t fdc_status;
     wd_fdc_t fdc_a, fdc_b;
 } wd1772_t;
 
 extern wd1772_t atari_wd1772;
+
+void wd_fdc_open(wd_fdc_t *fdc, FILE *file, const char *hint_filename);
 
 void wd1772_init(void);
 uint8_t wd1772_read8(uint8_t addr);
