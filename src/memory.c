@@ -111,7 +111,7 @@ uint8_t memory_read8(uint32_t address) {
     } else if (address < 0xF00000) {
         return 0; // TODO: 512k ROMs
     } else if (address < 0xFA0000) {
-        return 0; // TODO: io_read8(address);?
+        return 0; 
     } else if (address < 0xFC0000) {
         return 0; // TODO: 128K cartridge ROM
     } else if (address < 0xFF0000) {
@@ -131,7 +131,7 @@ uint16_t memory_read16(uint32_t address) {
     } else if (address < 0xF00000) {
         return 0; // TODO: 512k ROMs
     } else if (address < 0xFA0000) {
-        return 0; // TODO: io_read16(address);?
+        return 0; 
     } else if (address < 0xFC0000) {
         return 0; // TODO: 128K cartridge ROM
     } else if (address < 0xFF0000) {

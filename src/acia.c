@@ -34,7 +34,6 @@ static void acia_update_interrupt(bool trig) {
 }
 
 uint8_t acia_read8(uint8_t addr) {
-    // TODO
     // debug_printf("acia_read8: %02X\n", addr);
     switch (addr) {
     case 0x00:
@@ -272,8 +271,7 @@ void acia_write8(uint8_t addr, uint8_t value) {
         atari_acia.ikbd_control = value; break;
     case 0x02:
         acia_ikbd_recv(value);
-        // TODO
-        // acia_update_interrupt((atari_acia.ikbd_control & 0x60) == 0x20);
+        acia_update_interrupt((atari_acia.ikbd_control & 0x60) == 0x20);
         break;
     case 0x04:
         atari_acia.midi_control = value; break;

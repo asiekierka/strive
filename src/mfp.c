@@ -50,7 +50,7 @@ uint8_t mfp_read8(uint8_t addr) {
             return atari_mfp.timer.ctrl_cd;
         case 0x1F: {
             uint8_t data = atari_mfp.timer.data_a;
-            if (data != 0 && (atari_mfp.timer.ctrl_a & 0x0F) != 0) {
+            if (data != 0 && (atari_mfp.timer.ctrl_a & 0x0F)) {
                 data -= (system_cycles() - atari_mfp.timer.ticks_start_a) / atari_mfp.timer.ticks_step_a;
                 if (data < 1) data = 1;
             }
@@ -58,7 +58,7 @@ uint8_t mfp_read8(uint8_t addr) {
         }
         case 0x21: {
             uint8_t data = atari_mfp.timer.data_b;
-            if (data != 0 && (atari_mfp.timer.ctrl_b & 0x0F) != 0) {
+            if (data != 0 && (atari_mfp.timer.ctrl_b & 0x0F) && !(atari_mfp.timer.ctrl_b & 0x08)) {
                 data -= (system_cycles() - atari_mfp.timer.ticks_start_b) / atari_mfp.timer.ticks_step_b;
                 if (data < 1) data = 1;
             }
@@ -66,7 +66,7 @@ uint8_t mfp_read8(uint8_t addr) {
         }
         case 0x23: {
             uint8_t data = atari_mfp.timer.data_c;
-            if (data != 0 && (atari_mfp.timer.ctrl_cd & 0x07) != 0) {
+            if (data != 0 && (atari_mfp.timer.ctrl_cd & 0x70)) {
                 data -= (system_cycles() - atari_mfp.timer.ticks_start_c) / atari_mfp.timer.ticks_step_c;
                 if (data < 1) data = 1;
             }
@@ -74,7 +74,7 @@ uint8_t mfp_read8(uint8_t addr) {
         }
         case 0x25: {
             uint8_t data = atari_mfp.timer.data_d;
-            if (data != 0 && (atari_mfp.timer.ctrl_cd & 0x70) != 0) {
+            if (data != 0 && (atari_mfp.timer.ctrl_cd & 0x07)) {
                 data -= (system_cycles() - atari_mfp.timer.ticks_start_d) / atari_mfp.timer.ticks_step_d;
                 if (data < 1) data = 1;
             }
@@ -132,8 +132,6 @@ static void mfp_update_timer_c() {
         uint32_t mfp_ticks_until = atari_mfp.timer.data_c * delay_modes[mode];
         uint32_t cpu_ticks_until = mfp_ticks_until * 13 / 4;
 
-        // debug_printf("timer c runs for %d (%d) ticks (%d x %d)\n", mfp_ticks_until, cpu_ticks_until, atari_mfp.timer.data_c, mode);
-
         atari_mfp.timer.ticks_step_c = delay_modes[mode] * 13 / 4;
         atari_mfp.timer.ticks_start_c = system_cycles();
         atari_mfp.timer.ticks_end_c = atari_mfp.timer.ticks_start_c + cpu_ticks_until;
@@ -141,7 +139,7 @@ static void mfp_update_timer_c() {
 }
 
 static void mfp_update_timer_d() {
-    uint8_t mode = atari_mfp.timer.ctrl_cd & 0x07;
+    uint8_t mode = (atari_mfp.timer.ctrl_cd) & 0x07;
     if (mode > 0) {
         uint32_t mfp_ticks_until = atari_mfp.timer.data_d * delay_modes[mode];
         uint32_t cpu_ticks_until = mfp_ticks_until * 13 / 4;
@@ -152,6 +150,7 @@ static void mfp_update_timer_d() {
     }
 }
 
+NDS_ITCM_CODE
 static void mfp_update_interrupts(void) {
     while (true) {
         uint32_t pending = atari_mfp.intr.pending & atari_mfp.intr.mask;
@@ -174,6 +173,7 @@ static void mfp_update_interrupts(void) {
     }
 }
 
+NDS_ITCM_CODE
 void mfp_interrupt(uint8_t id) {
     uint16_t mask = 1 << id;
     if (atari_mfp.intr.enable & mask) {
@@ -182,6 +182,7 @@ void mfp_interrupt(uint8_t id) {
     }
 }
 
+NDS_ITCM_CODE
 void mfp_ack_interrupt(uint8_t id) {
     atari_mfp.intr.pending &= ~(1 << id);
 }
@@ -212,8 +213,19 @@ void mfp_clear_interrupt(uint8_t id) {
     }
 }
 
+NDS_ITCM_CODE
+void mfp_advance_hblank(void) {
+    if (atari_mfp.timer.data_b && (atari_mfp.timer.ctrl_b & 0x08)) {
+        if ((--atari_mfp.timer.data_b) == 0) {
+            atari_mfp.timer.data_b = atari_mfp.timer.data_reset_b;
+            mfp_interrupt(MFP_INT_A_TIMER_B);
+        }
+    }
+}
+
+NDS_ITCM_CODE
 void mfp_advance(uint32_t ticks) {
-    if ((atari_mfp.timer.ctrl_a & 0x0F) != 0 && atari_mfp.timer.data_a != 0) {
+    if ((atari_mfp.timer.ctrl_a & 0x0F) && atari_mfp.timer.data_a) {
         if (((int) (ticks - atari_mfp.timer.ticks_end_a)) >= 0) {
             uint32_t ticks_full_step = atari_mfp.timer.ticks_end_a - atari_mfp.timer.ticks_start_a;
             atari_mfp.timer.ticks_start_a += ticks_full_step;
@@ -222,7 +234,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if ((atari_mfp.timer.ctrl_b & 0x0F) != 0 && atari_mfp.timer.data_b != 0) {
+    if ((atari_mfp.timer.ctrl_b & 0x0F) && !(atari_mfp.timer.ctrl_b & 0x08) && atari_mfp.timer.data_b) {
         if (((int) (ticks - atari_mfp.timer.ticks_end_b)) >= 0) {
             uint32_t ticks_full_step = atari_mfp.timer.ticks_end_b - atari_mfp.timer.ticks_start_b;
             atari_mfp.timer.ticks_start_b += ticks_full_step;
@@ -231,7 +243,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if ((atari_mfp.timer.ctrl_cd & 0x07) != 0 && atari_mfp.timer.data_c != 0) {
+    if ((atari_mfp.timer.ctrl_cd & 0x70) && atari_mfp.timer.data_c) {
         if (((int) (ticks - atari_mfp.timer.ticks_end_c)) >= 0) {
             uint32_t ticks_full_step = atari_mfp.timer.ticks_end_c - atari_mfp.timer.ticks_start_c;
             atari_mfp.timer.ticks_start_c += ticks_full_step;
@@ -240,7 +252,7 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 
-    if ((atari_mfp.timer.ctrl_cd & 0x70) != 0 && atari_mfp.timer.data_d != 0) {
+    if ((atari_mfp.timer.ctrl_cd & 0x07) && atari_mfp.timer.data_d) {
         if (((int) (ticks - atari_mfp.timer.ticks_end_d)) >= 0) {
             uint32_t ticks_full_step = atari_mfp.timer.ticks_end_d - atari_mfp.timer.ticks_start_b;
             atari_mfp.timer.ticks_start_d += ticks_full_step;
@@ -249,6 +261,8 @@ void mfp_advance(uint32_t ticks) {
         }
     }
 }
+
+
 
 NDS_ITCM_CODE
 void mfp_write8(uint8_t addr, uint8_t value) {
@@ -290,7 +304,7 @@ void mfp_write8(uint8_t addr, uint8_t value) {
         case 0x1F:
             atari_mfp.timer.data_a = value; mfp_update_timer_a(); break;
         case 0x21:
-            atari_mfp.timer.data_b = value; mfp_update_timer_b(); break;
+            atari_mfp.timer.data_b = atari_mfp.timer.data_reset_b = value; mfp_update_timer_b(); break;
         case 0x23:
             atari_mfp.timer.data_c = value; mfp_update_timer_c(); break;
         case 0x25:

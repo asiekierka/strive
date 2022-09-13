@@ -172,10 +172,6 @@ void platform_gfx_frame_finish(void) {
 	float xmin, ymin, xmax, ymax, txmin, tymin, txmax, tymax;
     uint16_t scr_width, scr_height;
 
-    update_palette();
-
-    uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
-
     if (atari_screen.resolution >= 1) {
         scr_width = 640;
         scr_height = 200;

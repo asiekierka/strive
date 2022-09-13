@@ -120,8 +120,8 @@ static uint8_t fdc_read(wd_fdc_t *fdc, uint8_t addr) {
     // debug_printf("fdc read %d\n", addr);
     switch (addr) {
     case 0x00: { /* Status */
-        atari_wd1772.fdc_status &= ~FDC_STATUS_BUSY;
         uint8_t status = atari_wd1772.fdc_status;
+        atari_wd1772.fdc_status &= ~FDC_STATUS_BUSY;
         // debug_printf("fdc status is %02X\n", status);
         return status;
     }
@@ -162,6 +162,7 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
         } else {
             switch (value & 0xF0) {
             case 0x00: /* Restore */
+                // debug_printf("fdc: restore\n");
                 atari_wd1772.fdc_status &= ~0x0E;
                 atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
                 if (fdc->file == NULL || fdc->f_starting_track > 0) {
@@ -173,6 +174,7 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x10: /* Seek */
+                // debug_printf("fdc: seek from %d to %d\n", atari_wd1772.fdc_track_idx, atari_wd1772.fdc_data);
                 atari_wd1772.fdc_status &= ~0x0E;
                 atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
                 if (fdc->file == NULL) {

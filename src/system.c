@@ -214,18 +214,20 @@ bool system_frame(void) {
         system_frame_line();
     }
     for (system_y = 0; system_y < 200; system_y++) {
+        mfp_advance_hblank();
+        // Emit HBLANK
         if (cpu_core.irq < 2) {
-            // Emit HBLANK
             cpu_core.irq = 2;
         }
+
         system_frame_line();
     }
     platform_gfx_frame_draw_to(200);
     for (; system_y < 245; system_y++) {
         system_frame_line();
     }
+    // Emit VBLANK
     if (cpu_core.irq < 4) {
-        // Emit VBLANK
         cpu_core.irq = 4;
     }
     for (; system_y < 274; system_y++) {
