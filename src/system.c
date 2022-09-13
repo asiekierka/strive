@@ -122,7 +122,7 @@ static bool system_cpu_init(void) {
     wd1772_init();
     ym2149_init();
 
-    wd_fdc_open(&atari_wd1772.fdc_a, fopen("/disk.st", "rb"), "disk.st");
+    wd_fdc_open(&atari_wd1772.fdc_a, fopen("/disk.msa", "rb"), "disk.msa");
 
     // init PC for 192K ROM
     CycloneReset(&cpu_core);

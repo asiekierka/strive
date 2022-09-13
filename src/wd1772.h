@@ -28,11 +28,14 @@ typedef struct {
 
 typedef struct wd_fdc {
     FILE *file;
+    void *data;
+
     uint16_t f_sectors_per_track;
     uint16_t f_sides;
     uint16_t f_starting_track;
     uint16_t f_ending_track;
     uint16_t f_head;
+
     const wd_fdc_format_t *f_format;
 } wd_fdc_t;
 

@@ -1,3 +1,7 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "memory.h"
 #include "mfp.h"
@@ -5,6 +9,8 @@
 #include "platform_config.h"
 #include "wd1772.h"
 #include "ym2149.h"
+
+// .ST format
 
 bool wd_fdc_st_read_sector(wd_fdc_t *fdc, int track, int side, int sector, uint8_t *buffer) {
     int offset = ((((track * fdc->f_sides) + side) * fdc->f_sectors_per_track) + sector) * 512;
@@ -17,71 +23,179 @@ static const wd_fdc_format_t fdc_format_st = {
     .read_sector = wd_fdc_st_read_sector
 };
 
-void wd_fdc_open(wd_fdc_t *fdc, FILE *file, const char *hint_filename) {
+static bool wd_fdc_st_open(wd_fdc_t *fdc, FILE *file) {
+    fdc->f_starting_track = 0;
+    fdc->f_format = &fdc_format_st;
+
+    // calculate file size
+    fseek(fdc->file, 0, SEEK_END);
+    uint32_t filesize = ftell(fdc->file);
+    
+    switch (filesize) {
+    case 360*1024:
+        fdc->f_sectors_per_track = 9;
+        fdc->f_sides = 1;
+        fdc->f_ending_track = 79;
+        break;
+    case 370*1024:
+        fdc->f_sectors_per_track = 9;
+        fdc->f_sides = 1;
+        fdc->f_ending_track = 81;
+        break;
+    case 400*1024:
+        fdc->f_sectors_per_track = 10;
+        fdc->f_sides = 1;
+        fdc->f_ending_track = 79;
+        break;
+    case 410*1024:
+        fdc->f_sectors_per_track = 10;
+        fdc->f_sides = 1;
+        fdc->f_ending_track = 81;
+        break;
+    case 720*1024:
+        fdc->f_sectors_per_track = 9;
+        fdc->f_sides = 2;
+        fdc->f_ending_track = 79;
+        break;
+    case 740*1024:
+        fdc->f_sectors_per_track = 9;
+        fdc->f_sides = 2;
+        fdc->f_ending_track = 81;
+        break;
+    case 800*1024:
+        fdc->f_sectors_per_track = 10;
+        fdc->f_sides = 2;
+        fdc->f_ending_track = 79;
+        break;
+    case 810*1024:
+        fdc->f_sectors_per_track = 10;
+        fdc->f_sides = 2;
+        fdc->f_ending_track = 80;
+        break;
+    case 820*1024:
+        fdc->f_sectors_per_track = 10;
+        fdc->f_sides = 2;
+        fdc->f_ending_track = 81;
+        break;
+    default:
+        debug_printf("wd_fdc_st: unrecognized size %ld\n", filesize);
+        return false;
+    }
+    return true;
+}
+
+// .MSA format
+
+static uint16_t fread16be(FILE *file) {
+    uint8_t a = fgetc(file);
+    uint8_t b = fgetc(file);
+    return (a << 8) | b;
+}
+
+bool wd_fdc_msa_read_sector(wd_fdc_t *fdc, int track, int side, int sector, uint8_t *buffer) {
+    int track_offset = ((track - fdc->f_starting_track) * fdc->f_sides) + side;
+    int sector_bytes = 512 * fdc->f_sectors_per_track;
+    if (fseek(fdc->file, ((uint32_t*) fdc->data)[track_offset], SEEK_SET)) return false;
+    uint16_t track_len = fread16be(fdc->file);
+    if (track_len == sector_bytes) {
+        // uncompressed track
+        if (fseek(fdc->file, 512 * sector, SEEK_CUR)) return false;
+        return fread(buffer, 512, 1, fdc->file) > 0;
+    } else {
+        // compressed track, uncompress first
+        // TODO: cache this?
+        int decompress_ofs = -(512 * sector);
+        while (decompress_ofs < 512) {
+            uint8_t bt = fgetc(fdc->file);
+            if (bt == 0xE5) {
+                bt = fgetc(fdc->file);
+                uint16_t count = fread16be(fdc->file);
+                if (count > (512 - decompress_ofs)) {
+                    count = (512 - decompress_ofs);
+                }
+                for (int j = 0; j < count; j++) {
+                    if ((decompress_ofs++) >= 0) *(buffer++) = bt;
+                }
+            } else {
+                if ((decompress_ofs++) >= 0) *(buffer++) = bt;
+            }
+        }
+        return true;
+    }
+}
+
+static const wd_fdc_format_t fdc_format_msa = {
+    .read_sector = wd_fdc_msa_read_sector
+};
+
+static bool wd_fdc_msa_open(wd_fdc_t *fdc, FILE *file) {
+    fseek(fdc->file, 0, SEEK_SET);
+
+    // check ID marker
+    if (fread16be(file) != 0x0E0F) return false;
+
+    // read data
+    fdc->f_sectors_per_track = fread16be(file);
+    fdc->f_sides = fread16be(file) + 1;
+    fdc->f_starting_track = fread16be(file);
+    fdc->f_ending_track = fread16be(file);
+    if (fdc->f_starting_track >= fdc->f_ending_track || (fdc->f_sides < 1 || fdc->f_sides > 2)) return false;
+
+    // generate offsets
+    int track_offset_count = (fdc->f_ending_track - fdc->f_starting_track + 1) * fdc->f_sides;
+    uint32_t *track_offsets = malloc(sizeof(uint32_t) * track_offset_count);
+    for (int i = 0; i < track_offset_count; i++) {
+        track_offsets[i] = ftell(file);
+        uint16_t track_len = fread16be(file);
+        if (fseek(file, track_len, SEEK_CUR)) {
+            free(track_offsets);
+            return false;
+        }
+    }
+    debug_printf("wd_fdc_msa: opened with %d tracks (%ds, %ds, %d-%d)\n", track_offset_count, fdc->f_sectors_per_track, fdc->f_sides, fdc->f_starting_track, fdc->f_ending_track);
+
+    fdc->f_format = &fdc_format_msa;
+    fdc->data = track_offsets;
+
+    return true;
+}
+
+// FDC/WD1772 code
+
+static void wd_fdc_close(wd_fdc_t *fdc) {
     if (fdc->file != NULL) {
         fclose(fdc->file);
         fdc->file = NULL;
     }
 
-    // TODO: Support more than 720K .st files, have any detection
-    fdc->file = file;
-    if (file != NULL) {
-        fdc->f_head = 0;
-        fdc->f_starting_track = 0;
-        fdc->f_format = &fdc_format_st;
+    if (fdc->data != NULL) {
+        free(fdc->data);
+        fdc->data = NULL;
+    }
+}
 
-        // calculate file size
-        fseek(fdc->file, 0, SEEK_END);
-        uint32_t filesize = ftell(fdc->file);
-        
-        switch (filesize) {
-        case 360*1024:
-            fdc->f_sectors_per_track = 9;
-            fdc->f_sides = 1;
-            fdc->f_ending_track = 79;
-            break;
-        case 370*1024:
-            fdc->f_sectors_per_track = 9;
-            fdc->f_sides = 1;
-            fdc->f_ending_track = 81;
-            break;
-        case 400*1024:
-            fdc->f_sectors_per_track = 10;
-            fdc->f_sides = 1;
-            fdc->f_ending_track = 79;
-            break;
-        case 410*1024:
-            fdc->f_sectors_per_track = 10;
-            fdc->f_sides = 1;
-            fdc->f_ending_track = 81;
-            break;
-        default:
-            debug_printf("wd_fdc_st: unrecognized size %ld\n", filesize);
-        case 720*1024:
-            fdc->f_sectors_per_track = 9;
-            fdc->f_sides = 2;
-            fdc->f_ending_track = 79;
-            break;
-        case 740*1024:
-            fdc->f_sectors_per_track = 9;
-            fdc->f_sides = 2;
-            fdc->f_ending_track = 81;
-            break;
-        case 800*1024:
-            fdc->f_sectors_per_track = 10;
-            fdc->f_sides = 2;
-            fdc->f_ending_track = 79;
-            break;
-        case 810*1024:
-            fdc->f_sectors_per_track = 10;
-            fdc->f_sides = 2;
-            fdc->f_ending_track = 80;
-            break;
-        case 820*1024:
-            fdc->f_sectors_per_track = 10;
-            fdc->f_sides = 2;
-            fdc->f_ending_track = 81;
-            break;
+#define HINT_EXTENSION_IS(hf, ext) (strcasecmp((hf) + strlen(hf) - strlen(ext), (ext)) == 0)
+
+void wd_fdc_open(wd_fdc_t *fdc, FILE *file, const char *hint_filename) {
+    wd_fdc_close(fdc);
+
+    fdc->file = file;
+    fdc->f_head = 0;
+
+    if (file != NULL) {
+        if (HINT_EXTENSION_IS(hint_filename, ".msa") && wd_fdc_msa_open(fdc, file)) {
+            return;
+        } else if (HINT_EXTENSION_IS(hint_filename, ".st") && wd_fdc_st_open(fdc, file)) {
+            return;
+        } else {
+            // hint extension check failed - autodetection attempt
+
+            if (!wd_fdc_st_open(fdc, file)) {
+                if (!wd_fdc_msa_open(fdc, file)) {
+                    wd_fdc_close(fdc);
+                    return;
+                }
+            }
         }
     }
 }
