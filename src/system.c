@@ -82,7 +82,6 @@ static int system_cpu_irq_callback(int int_level) {
     case 6:
         // MFP interrupt
         mfp_ack_interrupt(mfp_interrupt_offset);
-        // TODO: vector base
         return (atari_mfp.vector_base & 0xF0) | mfp_interrupt_offset;
     default:
         // HBLANK, VBLANK interrupt

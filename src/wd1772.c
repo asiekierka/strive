@@ -166,7 +166,7 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
                 if (fdc->file == NULL || fdc->f_starting_track > 0) {
                     atari_wd1772.fdc_status |= FDC_STATUS_SEEK_ERROR;
-                } else {
+                }/* else */{
                     fdc->f_head = 0;
                     atari_wd1772.fdc_track_idx = 0;
                 }
@@ -264,7 +264,7 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
             }
             if (value < 0x80) {
                 atari_wd1772.fdc_status &= ~FDC_STATUS_TRACK_0;
-                if (fdc->file != NULL && atari_wd1772.fdc_track_idx == 0) {
+                if (atari_wd1772.fdc_track_idx == 0) {
                     atari_wd1772.fdc_status |= FDC_STATUS_TRACK_0;
                 }
             }
