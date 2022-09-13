@@ -45,6 +45,7 @@ typedef struct wd1772 {
     uint32_t dta;
     uint8_t sector_count;
 
+    int8_t fdc_dir;
     uint8_t fdc_control, fdc_track_idx, fdc_sector_idx, fdc_data;
     uint8_t fdc_status;
     wd_fdc_t fdc_a, fdc_b;

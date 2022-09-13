@@ -251,6 +251,7 @@ static uint8_t fdc_read(wd_fdc_t *fdc, uint8_t addr) {
 }
 
 static void fdc_move_head(wd_fdc_t *fdc, int offset) {
+    atari_wd1772.fdc_dir = offset == 0 ? 0 : (offset < 0 ? -1 : 1);
     fdc->f_head += offset;
 
     uint8_t span = fdc->f_ending_track + 1 - fdc->f_starting_track;
@@ -281,10 +282,9 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
                 if (fdc->file == NULL || fdc->f_starting_track > 0) {
                     atari_wd1772.fdc_status |= FDC_STATUS_SEEK_ERROR;
-                }/* else */{
-                    fdc->f_head = 0;
-                    atari_wd1772.fdc_track_idx = 0;
                 }
+                fdc->f_head = 0;
+                atari_wd1772.fdc_track_idx = 0;
                 mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x10: /* Seek */
@@ -302,17 +302,38 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
             case 0x20: /* Step */
             case 0x30:
                 atari_wd1772.fdc_status &= ~0x0E;
-                debug_printf("todo: fdc step\n");
+                atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
+                if (fdc->file == NULL) {
+                    atari_wd1772.fdc_status |= FDC_STATUS_SEEK_ERROR;
+                } else {
+                    fdc_move_head(fdc, atari_wd1772.fdc_dir);
+                    if (value & 0x10) atari_wd1772.fdc_track_idx += atari_wd1772.fdc_dir;
+                }
+                mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x40: /* Step-in */
             case 0x50:
                 atari_wd1772.fdc_status &= ~0x0E;
-                debug_printf("todo: fdc step-in\n");
+                atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
+                if (fdc->file == NULL) {
+                    atari_wd1772.fdc_status |= FDC_STATUS_SEEK_ERROR;
+                } else {
+                    fdc_move_head(fdc, 1);
+                    if (value & 0x10) atari_wd1772.fdc_track_idx++;
+                }
+                mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x60: /* Step-out */
             case 0x70:
                 atari_wd1772.fdc_status &= ~0x0E;
-                debug_printf("todo: fdc step-out\n");
+                atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
+                if (fdc->file == NULL) {
+                    atari_wd1772.fdc_status |= FDC_STATUS_SEEK_ERROR;
+                } else {
+                    fdc_move_head(fdc, -1);
+                    if (value & 0x10) atari_wd1772.fdc_track_idx--;
+                }
+                mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x80: /* Read Sector */
             case 0x90:
