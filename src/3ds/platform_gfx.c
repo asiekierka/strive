@@ -89,35 +89,42 @@ static void update_palette(void) {
             | (color_map[(entry >> 8) & 0xF] << 24);
     }
 
-    uint8_t r0 = palette_mini_lut[0] >> 24;
-    uint8_t g0 = palette_mini_lut[0] >> 16;
-    uint8_t b0 = palette_mini_lut[0] >> 8;
-    uint8_t r1 = palette_mini_lut[1] >> 24;
-    uint8_t g1 = palette_mini_lut[1] >> 16;
-    uint8_t b1 = palette_mini_lut[1] >> 8;
-    for (int i = 0; i < 4; i++) {
-        uint16_t r = (r0 * (3 - i)) + (r1 * i);
-        uint16_t g = (g0 * (3 - i)) + (g1 * i);
-        uint16_t b = (b0 * (3 - i)) + (b1 * i);
-        palette_mono_lut[i] = ((r / 3) << 24)
-            | ((g / 3) << 16)
-            | ((b / 3) << 8) | 0xFF;
+    if (atari_screen.resolution == 2) {
+        uint8_t r0 = palette_mini_lut[0] >> 24;
+        uint8_t g0 = palette_mini_lut[0] >> 16;
+        uint8_t b0 = palette_mini_lut[0] >> 8;
+        uint8_t r1 = palette_mini_lut[1] >> 24;
+        uint8_t g1 = palette_mini_lut[1] >> 16;
+        uint8_t b1 = palette_mini_lut[1] >> 8;
+        for (int i = 0; i < 4; i++) {
+            uint16_t r = (r0 * (3 - i)) + (r1 * i);
+            uint16_t g = (g0 * (3 - i)) + (g1 * i);
+            uint16_t b = (b0 * (3 - i)) + (b1 * i);
+            palette_mono_lut[i] = ((r / 3) << 24)
+                | ((g / 3) << 16)
+                | ((b / 3) << 8) | 0xFF;
+        }
     }
 
     palette_changed = false;
 }
 
-__attribute__((optimize("-O3")))
-void platform_gfx_draw_frame(void) {
-	float xmin, ymin, xmax, ymax, txmin, tymin, txmax, tymax;
-    uint16_t scr_width, scr_height;
+static int16_t start_y;
 
+void platform_gfx_frame_start(void) {
+    start_y = 0;
+}
+
+__attribute__((optimize("-O3")))
+void platform_gfx_frame_draw_to(int16_t end_y) {
+    if (end_y > 200) end_y = 200;
+    
     update_palette();
 
-    uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
+    uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask) + (start_y * 160);
 
     if (atari_screen.resolution == 2) {
-        for (int y = 0; y < 200; y++) {
+        for (int y = start_y; y < end_y; y++) {
             uint32_t *dst = screen_buf + (1024 * y);
             for (int x = 0; x < 640; x += 16, src += 2) {
                 uint16_t bp0 = src[0] | (src[1] << 8);
@@ -129,10 +136,8 @@ void platform_gfx_draw_frame(void) {
             }
             src += 80;
         }
-        scr_width = 640;
-        scr_height = 200;
     } else if (atari_screen.resolution == 1) {
-        for (int y = 0; y < 200; y++) {
+        for (int y = start_y; y < end_y; y++) {
             uint32_t *dst = screen_buf + (1024 * y);
             for (int x = 0; x < 640; x += 16, src += 4) {
                 uint16_t bp0 = src[0] | (src[1] << 8);
@@ -143,10 +148,8 @@ void platform_gfx_draw_frame(void) {
                 }
             }
         }
-        scr_width = 640;
-        scr_height = 200;
     } else {
-        for (int y = 0; y < 200; y++) {
+        for (int y = start_y; y < end_y; y++) {
             uint32_t *dst = screen_buf + (1024 * y);
             for (int x = 0; x < 320; x += 16, src += 8) {
                 uint16_t bp0 = src[0] | (src[1] << 8);
@@ -160,6 +163,23 @@ void platform_gfx_draw_frame(void) {
                 }
             }
         }
+    }
+    
+    start_y = end_y;
+}
+
+void platform_gfx_frame_finish(void) {
+	float xmin, ymin, xmax, ymax, txmin, tymin, txmax, tymax;
+    uint16_t scr_width, scr_height;
+
+    update_palette();
+
+    uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
+
+    if (atari_screen.resolution >= 1) {
+        scr_width = 640;
+        scr_height = 200;
+    } else {
         scr_width = 320;
         scr_height = 200;
     }
@@ -173,7 +193,7 @@ void platform_gfx_draw_frame(void) {
 	);
 
     C3D_FrameBegin(0);
-    C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, palette_mini_lut[0], 0);
+    C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, palette_mini_lut[0] >> 8, 0);
 
 	xmin = (400 - 320) / 2.0f;
 	ymin = (240 - 200) / 2.0f;

@@ -24,7 +24,9 @@ uint32_t platform_get_ticks(void);
 /* == Graphics == */
 
 void platform_gfx_on_palette_update(void);
-void platform_gfx_draw_frame(void);
+void platform_gfx_frame_start(void);
+void platform_gfx_frame_draw_to(int16_t y);
+void platform_gfx_frame_finish(void);
 
 /* == Date == */
 

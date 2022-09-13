@@ -38,9 +38,9 @@ uint8_t acia_read8(uint8_t addr) {
     // debug_printf("acia_read8: %02X\n", addr);
     switch (addr) {
     case 0x00:
-        return (atari_acia.ikbd_out_len > 0 ? 1 : 0) | atari_acia.ikbd_status;
+        return ((atari_acia.ikbd_out_len > 0 && !atari_acia.paused) ? 1 : 0) | atari_acia.ikbd_status;
     case 0x02:
-        if (atari_acia.ikbd_out_len > 0) {
+        if (atari_acia.ikbd_out_len > 0 && !atari_acia.paused) {
             uint8_t res = atari_acia.ikbd_out[0];
             if ((--atari_acia.ikbd_out_len) == 0) {
                 // debug_printf("acia: emptied buffer\n");
@@ -72,8 +72,10 @@ void acia_ikbd_send(uint8_t value) {
     atari_acia.ikbd_out[atari_acia.ikbd_out_len++] = value;
 }
 
-static inline void acia_ikbd_send_done(void) {
-    acia_update_interrupt(atari_acia.ikbd_control & 0x80);
+static void acia_ikbd_send_done(void) {
+    if (!atari_acia.paused) {
+        acia_update_interrupt(atari_acia.ikbd_control & 0x80);
+    }
 }
 
 static uint8_t acia_number_to_bcd(int v) {
@@ -178,9 +180,11 @@ static void acia_ikbd_recv(uint8_t value) {
         atari_acia.last_mouse_y = atari_acia.mouse_y;
         break;
     case 0x0F: /* Set Y=0 at bottom */
+        debug_printf("acia: TODO Y=0 handling (bottom)\n");
         atari_acia.mouse_y0_mode = ACIA_MOUSE_Y0_BOTTOM;
         break;
     case 0x10: /* Set Y=0 at top */
+        debug_printf("acia: TODO Y=0 handling (top)\n");
         atari_acia.mouse_y0_mode = ACIA_MOUSE_Y0_TOP;
         break;
     case 0x8F: /* Status - Y=0? */
@@ -189,7 +193,12 @@ static void acia_ikbd_recv(uint8_t value) {
         acia_ikbd_send_done();
         break;
     case 0x11: /* Resume */
-        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        if (atari_acia.paused) {
+            atari_acia.paused = false;
+            if (atari_acia.ikbd_out_len > 0) {
+                acia_ikbd_send_done();
+            }
+        }
         break;
     case 0x12: /* Disable mouse */
         atari_acia.mouse_mode = ACIA_MOUSE_MODE_DISABLED;
@@ -199,7 +208,9 @@ static void acia_ikbd_recv(uint8_t value) {
         acia_ikbd_send_done();
         break;
     case 0x13: /* Pause output */
-        debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
+        if (!atari_acia.paused) {
+            atari_acia.paused = true;
+        }
         break;
     case 0x14: /* Set joystick event reporting */
         debug_printf("acia: TODO command %02X\n", atari_acia.ikbd_in[0]);
@@ -342,4 +353,9 @@ void acia_ikbd_set_mouse_button(uint8_t v) {
             acia_ikbd_update_mouse_relative(true);
         }
     }
+}
+
+void acia_ikbd_add_key_press(uint8_t keycode) {
+    acia_ikbd_send(keycode);
+    acia_ikbd_send_done();
 }

@@ -109,6 +109,7 @@ static void update_palette(void) {
         | ((bp >> 7) & 0x80000) \
         | ((bp << 21) & 0x1000000) | ((bp << 14) & 0x2000000) \
         | ((bp << 7) & 0x4000000)) */
+
 #define COMBINE_4PX_ST_LOW() ( \
         (bp & 0x8040201) \
         | ((bp >> 7) & 0x80402) \
@@ -125,9 +126,17 @@ static void update_palette(void) {
         | ((bp << 18) & 0x3000000) | ((bp << 4) & 0xC000000) \
     )
 
+void platform_gfx_frame_start(void) {
+
+}
+
+void platform_gfx_frame_draw_to(int16_t y) {
+
+}
+
 NDS_ITCM_CODE
 __attribute__((optimize("-O3")))
-void platform_gfx_draw_frame(void) {
+void platform_gfx_frame_finish(void) {
     uint32_t ticks = _TIMER_TICKS(0);
 
     update_palette();

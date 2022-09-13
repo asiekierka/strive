@@ -72,6 +72,11 @@ void wd_fdc_open(wd_fdc_t *fdc, FILE *file, const char *hint_filename) {
             fdc->f_sides = 2;
             fdc->f_ending_track = 79;
             break;
+        case 810*1024:
+            fdc->f_sectors_per_track = 10;
+            fdc->f_sides = 2;
+            fdc->f_ending_track = 80;
+            break;
         case 820*1024:
             fdc->f_sectors_per_track = 10;
             fdc->f_sides = 2;
@@ -164,8 +169,8 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 } else {
                     fdc->f_head = 0;
                     atari_wd1772.fdc_track_idx = 0;
-                    mfp_set_interrupt(MFP_INT_ID_DISK);
                 }
+                mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x10: /* Seek */
                 atari_wd1772.fdc_status &= ~0x0E;
@@ -175,8 +180,8 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 } else {
                     fdc_move_head(fdc, atari_wd1772.fdc_data - atari_wd1772.fdc_track_idx);
                     atari_wd1772.fdc_track_idx = atari_wd1772.fdc_data;
-                    mfp_set_interrupt(MFP_INT_ID_DISK);
                 }
+                mfp_set_interrupt(MFP_INT_ID_DISK);
                 break;
             case 0x20: /* Step */
             case 0x30:

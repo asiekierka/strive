@@ -38,8 +38,10 @@ typedef struct mfp_timer {
     uint8_t ctrl_a, ctrl_b, ctrl_cd;
     uint8_t data_a, data_b, data_c, data_d;
 
-    int ticks_a, ticks_b, ticks_c, ticks_d;
-    int ticks_reset_a, ticks_reset_b, ticks_reset_c, ticks_reset_d;
+    uint32_t ticks_start_a, ticks_end_a, ticks_step_a;
+    uint32_t ticks_start_b, ticks_end_b, ticks_step_b;
+    uint32_t ticks_start_c, ticks_end_c, ticks_step_c;
+    uint32_t ticks_start_d, ticks_end_d, ticks_step_d;
 } mfp_timer_t;
 
 typedef struct mfp_uart {

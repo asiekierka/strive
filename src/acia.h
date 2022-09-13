@@ -22,6 +22,8 @@
 #define ACIA_MOUSE_BUTTON_LEFT_DOWN  0x04
 #define ACIA_MOUSE_BUTTON_LEFT_UP    0x08
 
+#define ACIA_KEY_RELEASE 0x80
+
 typedef struct acia {
     uint8_t ikbd_control, ikbd_data, ikbd_status;
     uint8_t midi_control, midi_data, midi_status;
@@ -30,6 +32,8 @@ typedef struct acia {
     uint8_t ikbd_in_len;
     uint8_t ikbd_out[ACIA_IKBD_OUTPUT_LEN];
     uint8_t ikbd_out_len;
+
+    bool paused;
 
     uint8_t mouse_mode;
     uint8_t mouse_button_mode;
@@ -65,3 +69,4 @@ void acia_write8(uint8_t addr, uint8_t value);
 void acia_ikbd_set_mouse_pos(int32_t x, int32_t y);
 void acia_ikbd_add_mouse_pos(int32_t x, int32_t y);
 void acia_ikbd_set_mouse_button(uint8_t v);
+void acia_ikbd_add_key_press(uint8_t keycode);

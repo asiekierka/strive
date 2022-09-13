@@ -19,7 +19,11 @@ uint8_t *memory_ram;
 NDS_DTCM_BSS
 uint8_t *memory_rom;
 NDS_DTCM_DATA
+#ifdef __NDS__
 uint32_t memory_ram_mask = (1 * 1024 * 1024) - 1;
+#else
+uint32_t memory_ram_mask = (4 * 1024 * 1024) - 1;
+#endif
 uint8_t memory_io_bank_cfg = 0b00001010;
 
 NDS_ITCM_CODE

@@ -19,14 +19,22 @@ FILE* trace_file;
 #define trace_printf(...) fprintf(trace_file, __VA_ARGS__)
 #endif
 
+NDS_DTCM_BSS
 static uint32_t system_cycle_count;
+NDS_DTCM_BSS
+static int16_t system_y;
 
 #ifdef STRIVE_68K_CYCLONE
 #include "Cyclone.h"
 NDS_DTCM_BSS
 struct Cyclone cpu_core;
+NDS_DTCM_BSS
 static int cpu_cycles_overrun;
+NDS_DTCM_BSS
 static int cpu_cycles_left;
+NDS_DTCM_BSS
+static int cpu_cycles_current;
+NDS_DTCM_BSS
 static uint8_t mfp_interrupt_offset;
 
 static inline void system_cpu_stop_inner(void) {
@@ -142,7 +150,11 @@ static bool system_cpu_init(void) {
 }
 
 uint32_t system_cycles(void) {
-    return system_cycle_count;
+    return system_cycle_count + cpu_cycles_current - cpu_core.cycles;
+}
+
+int16_t system_line_y(void) {
+    return system_y;
 }
 
 NDS_ITCM_CODE
@@ -151,7 +163,9 @@ static void system_cpu_run(int cycles) {
         cpu_core.cycles += cycles;
         cpu_cycles_left = 0;
         uint32_t cycles_start = cpu_core.cycles;
+        cpu_cycles_current = cpu_core.cycles;
         CycloneRun(&cpu_core);
+        cpu_cycles_current = cpu_core.cycles;
         uint32_t cycles_performed = (cycles_start - cpu_core.cycles) - cpu_cycles_left;
         system_cycle_count += cycles_performed;
         cycles -= cycles_performed;
@@ -169,39 +183,57 @@ bool system_init(void) {
 }
 
 NDS_ITCM_CODE
+static inline void system_frame_line(void) {
+    int cycles = system_cycle_count;
+    int cycles_expected = 512 - cpu_cycles_overrun;
+#ifdef TRACE_CPU
+    while ((system_cycle_count - cycles) < cycles_expected) {
+        system_cpu_run(1);
+        uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
+        DisaPc = pc;
+        DisaGet();
+        trace_printf("%06X\t[a0=%08X a1=%08X a4=%08X a7=%08X i%d]\t%s\n", pc,
+            cpu_core.a[0], cpu_core.a[1], cpu_core.a[4], cpu_core.a[7], cpu_core.irq,
+            DisaText);
+    }
+#else
+    system_cpu_run(cycles_expected);
+#endif
+    cycles = system_cycle_count - cycles;
+    cpu_cycles_overrun = cycles - cycles_expected;
+    mfp_advance(system_cycle_count);
+}
+
+NDS_ITCM_CODE
 bool system_frame(void) {
     // debug_printf("frame start! pc = %06lX, irq = %d\n", (cpu_core.pc - cpu_core.membase) & 0xFFFFFF, cpu_core.irq)
 
-    platform_gfx_draw_frame();
-
     acia_advance(512 * 313);
-    for (int y = 0; y < 313; y++) {
-        if (y < 200 && cpu_core.irq < 2) {
-            // Emit HBLANK
-            cpu_core.irq = 2; 
-        } else if (y == 200 && cpu_core.irq < 4) {
-            // Emit VBLANK
-            cpu_core.irq = 4;
-        }
-        int cycles = system_cycle_count;
-        int cycles_expected = 512 - cpu_cycles_overrun;
-#ifdef TRACE_CPU
-        while ((system_cycle_count - cycles) < cycles_expected) {
-            system_cpu_run(1);
-            uint32_t pc = (cpu_core.pc - cpu_core.membase) & 0xFFFFFF;
-            DisaPc = pc;
-            DisaGet();
-            trace_printf("%06X\t[a0=%08X a1=%08X a4=%08X a7=%08X i%d]\t%s\n", pc,
-                cpu_core.a[0], cpu_core.a[1], cpu_core.a[4], cpu_core.a[7], cpu_core.irq,
-                DisaText);
-        }
-#else
-        system_cpu_run(cycles_expected);
-#endif
-        cycles = system_cycle_count - cycles;
-        cpu_cycles_overrun = cycles - cycles_expected;
-        mfp_advance(cycles);
+
+    platform_gfx_frame_start();
+    for (system_y = -39; system_y < 0; system_y++) {
+        system_frame_line();
     }
+    for (system_y = 0; system_y < 200; system_y++) {
+        if (cpu_core.irq < 2) {
+            // Emit HBLANK
+            cpu_core.irq = 2;
+        }
+        system_frame_line();
+    }
+    platform_gfx_frame_draw_to(200);
+    for (; system_y < 245; system_y++) {
+        system_frame_line();
+    }
+    if (cpu_core.irq < 4) {
+        // Emit VBLANK
+        cpu_core.irq = 4;
+    }
+    for (; system_y < 274; system_y++) {
+        system_frame_line();
+    }
+
+    platform_gfx_frame_finish();
 
 #ifdef TRACE
     fflush(trace_file);
