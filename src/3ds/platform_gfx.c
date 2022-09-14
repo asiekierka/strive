@@ -112,14 +112,23 @@ static void update_palette(void) {
 static int16_t start_y;
 
 void platform_gfx_frame_start(void) {
-    start_y = 0;
+    start_y = -20;
 }
 
 __attribute__((optimize("-O3")))
 void platform_gfx_frame_draw_to(int16_t end_y) {
-    if (end_y > 200) end_y = 200;
+    if (start_y >= end_y) return;
+    if (end_y <= -20) return;
     
     update_palette();
+
+    int32_t end_y_border = (end_y > 220) ? 220 : end_y;
+    for (int y = start_y; y < end_y_border; y++) {
+        screen_buf[768 + (1024 * (y + 20))] =  palette_mini_lut[0];     
+    }
+
+    if (end_y <= 0) return;
+    if (end_y > 200) end_y = 200;
 
     uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask) + (start_y * 160);
 
@@ -170,6 +179,7 @@ void platform_gfx_frame_draw_to(int16_t end_y) {
 
 void platform_gfx_frame_finish(void) {
 	float xmin, ymin, xmax, ymax, txmin, tymin, txmax, tymax;
+    float txmin_border, tymin_border, txmax_border, tymax_border;
     uint16_t scr_width, scr_height;
 
     if (atari_screen.resolution >= 1) {
@@ -180,8 +190,8 @@ void platform_gfx_frame_finish(void) {
         scr_height = 200;
     }
 
-	GSPGPU_FlushDataCache(screen_buf, 1024 * 512 * 4);
-	C3D_SyncDisplayTransfer(screen_buf, GX_BUFFER_DIM(1024, 512), screen_tex.data,
+	GSPGPU_FlushDataCache(screen_buf, 1024 * 256 * 4);
+	C3D_SyncDisplayTransfer(screen_buf, GX_BUFFER_DIM(1024, 256), screen_tex.data,
         GX_BUFFER_DIM(screen_tex.width, screen_tex.height),
 		(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_RAW_COPY(0) |
 		GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) |
@@ -189,7 +199,7 @@ void platform_gfx_frame_finish(void) {
 	);
 
     C3D_FrameBegin(0);
-    C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, palette_mini_lut[0] >> 8, 0);
+    // C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, palette_mini_lut[0] >> 8, 0);
 
 	xmin = (400 - 320) / 2.0f;
 	ymin = (240 - 200) / 2.0f;
@@ -197,14 +207,32 @@ void platform_gfx_frame_finish(void) {
 	ymax = ymin + 200;
 	txmax = ((float) scr_width / screen_tex.width);
 	txmin = 0.0f;
-	tymin = ((float) scr_height / screen_tex.height);
+    tymin = ((float) scr_height / screen_tex.height);
 	tymax = 0.0f;
+    txmax_border = 769.0f / screen_tex.width;
+    txmin_border = 768.0f / screen_tex.width;
+    tymin_border = 240.0f / screen_tex.height;
+    tymax_border = 0.0f;
 
 	C3D_FrameDrawOn(target_top);
 	C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, shader.proj_loc, &proj_top);
 
 	C3D_TexBind(0, &screen_tex);
 	C3D_ImmDrawBegin(GPU_TRIANGLE_STRIP);
+    // draw border
+		C3D_ImmSendAttrib(0, 0, 1.0f, 0.0f);
+		C3D_ImmSendAttrib(txmin_border, tymin_border, 0.0f, 0.0f);
+
+		C3D_ImmSendAttrib(target_top->frameBuf.height, 0, 1.0f, 0.0f);
+		C3D_ImmSendAttrib(txmax_border, tymin_border, 0.0f, 0.0f);
+
+		C3D_ImmSendAttrib(0, 240, 1.0f, 0.0f);
+		C3D_ImmSendAttrib(txmin_border, tymax_border, 0.0f, 0.0f);
+
+		C3D_ImmSendAttrib(target_top->frameBuf.height, 240, 1.0f, 0.0f);
+		C3D_ImmSendAttrib(txmax_border, tymax_border, 0.0f, 0.0f);
+
+    // draw screen
 		C3D_ImmSendAttrib(xmin, ymin, 0.0f, 0.0f);
 		C3D_ImmSendAttrib(txmin, tymin, 0.0f, 0.0f);
 

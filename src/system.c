@@ -222,10 +222,10 @@ bool system_frame(void) {
 
         system_frame_line();
     }
-    platform_gfx_frame_draw_to(200);
     for (; system_y < 245; system_y++) {
         system_frame_line();
     }
+    platform_gfx_frame_draw_to(245);
     // Emit VBLANK
     if (cpu_core.irq < 4) {
         cpu_core.irq = 4;
