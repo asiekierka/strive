@@ -36,3 +36,5 @@ typedef struct {
 } platform_daytime_t;
 
 void platform_get_daytime(platform_daytime_t *daytime, int64_t offset);
+
+#include "platform_audio.h"

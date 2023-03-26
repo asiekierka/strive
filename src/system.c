@@ -135,7 +135,7 @@ static bool system_cpu_init(void) {
     system_cycle_count = 0;
     cpu_cycles_left = 0;
 
-    debug_printf("init! membase = %08lX, pc = %06lX\n", cpu_core.membase, (cpu_core.pc - cpu_core.membase) & 0xFFFFFF);
+    // debug_printf("init! membase = %08X, pc = %06X\n", cpu_core.membase, (cpu_core.pc - cpu_core.membase) & 0xFFFFFF);
 
 #ifdef TRACE
     trace_file = fopen("/strive_trace.txt", "w");    
@@ -234,6 +234,7 @@ bool system_frame(void) {
         system_frame_line();
     }
 
+    ym2149_update(system_cycles());
     platform_gfx_frame_finish();
 
 #ifdef TRACE

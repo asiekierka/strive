@@ -1,5 +1,7 @@
 #include "../memory.h"
 #include "nds/arm9/background.h"
+#include "nds/arm9/video.h"
+#include "nds/system.h"
 #include "platform.h"
 #include "platform_config.h"
 #include "screen.h"
@@ -20,18 +22,35 @@ static const uint8_t color_map_ste[16] = {
 };
 
 void _platform_gfx_init(void) {
-    consoleDemoInit();
+    lcdMainOnBottom();
+    
+    videoSetMode(MODE_0_2D);
+    vramSetBankA(VRAM_A_MAIN_BG);
+    consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 3, 22, true, true);
 
-    videoSetMode(MODE_5_2D | DISPLAY_BG2_ACTIVE);
-    vramSetBankE(VRAM_E_MAIN_BG);
+    videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE);
+    vramSetBankC(VRAM_C_SUB_BG);
 
-    REG_BG2CNT = BG_BMP8_512x256 | BG_BMP_BASE(0);
-    REG_BG2PA = -320;
-    REG_BG2PB = 0;
-    REG_BG2PC = 0;
-    REG_BG2PD = 267;
-    REG_BG2X = 320 << 8;
-    REG_BG2Y = 0;
+    REG_BG2CNT_SUB = BG_BMP8_512x256 | BG_BMP_BASE(0) | BG_PRIORITY(1);
+    REG_BG2PA_SUB = -320;
+    REG_BG2PB_SUB = 0;
+    REG_BG2PC_SUB = 0;
+    REG_BG2PD_SUB = 267;
+    REG_BG2X_SUB = 320 << 8;
+    REG_BG2Y_SUB = 0;
+
+    // alpha blend
+
+    REG_BG3CNT_SUB = BG_BMP8_512x256 | BG_BMP_BASE(0) | BG_PRIORITY(1);
+    REG_BG3PA_SUB = -320;
+    REG_BG3PB_SUB = 0;
+    REG_BG3PC_SUB = 0;
+    REG_BG3PD_SUB = 267;
+    REG_BG3X_SUB = (320 << 8) - 160;
+    REG_BG3Y_SUB = 0;
+
+    REG_BLDCNT_SUB = BLEND_ALPHA | BLEND_SRC_BG2 | BLEND_DST_BG3 | BLEND_DST_BACKDROP;
+    REG_BLDALPHA_SUB = (8 << 8) | 8;
 }
 
 void _platform_gfx_exit(void) {
@@ -66,7 +85,7 @@ static void update_palette(void) {
             uint8_t g = (g1 * (4 - set_bits)) + (g2 * set_bits);
             uint8_t b = (b1 * (4 - set_bits)) + (b2 * set_bits);
 
-            BG_PALETTE[i] = 0x8000 
+            BG_PALETTE_SUB[i] = 0x8000 
                 | ((r >> 2) << 10)
                 | ((g >> 2) << 5)
                 | ((b >> 2));
@@ -83,7 +102,7 @@ static void update_palette(void) {
             uint8_t g2 = color_map[entry2 & 0xF];
             uint8_t b2 = color_map[entry2 & 0xF];
 
-            BG_PALETTE[i] = 0x8000 
+            BG_PALETTE_SUB[i] = 0x8000 
                 | (((r1 + r2) >> 1) << 10)
                 | (((g1 + g2) >> 1) << 5)
                 | (((b1 + b2) >> 1));
@@ -91,7 +110,7 @@ static void update_palette(void) {
     } else {
         for (int i = 0; i < 16; i++) {
             uint16_t entry = atari_screen.palette[i];
-            BG_PALETTE[i] = 0x8000 
+            BG_PALETTE_SUB[i] = 0x8000 
                 | (color_map[entry & 0xF] << 10)
                 | (color_map[(entry >> 4) & 0xF] << 5)
                 | (color_map[(entry >> 8) & 0xF]);
@@ -147,7 +166,7 @@ void platform_gfx_frame_finish(void) {
     video_memory_dirty[(atari_screen.base >> 15) + 1] = 0;
 
     uint8_t *src = memory_ram + (atari_screen.base & memory_ram_mask);
-    uint32_t *dst = ((uint32_t*) BG_GFX);
+    uint32_t *dst = ((uint32_t*) BG_GFX_SUB);
 
     if (atari_screen.resolution <= 1) {
         // ST-LOW, ST-MED
@@ -184,5 +203,4 @@ void platform_gfx_frame_finish(void) {
     }
 
     ticks = _TIMER_TICKS(0) - ticks;
-     iprintf("%d ticks\n", ticks);
 }

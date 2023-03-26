@@ -2,7 +2,7 @@
 
 #define STRIVE_68K_CYCLONE
 #define STRIVE_AY38910_FLUBBA
-#define ROM_FILE "romfs:/etos192uk.img"
+#define ROM_FILE "romfs:/emutos/etos192uk.img"
 
 #define DEBUG
 
@@ -19,6 +19,8 @@ extern FILE* trace_file;
 #else
 #define debug_printf(...)
 #endif
+
+#define STRIVE_SETVBUF_SIZE 32768
 
 #define PLATFORM_TICKS_PER_SECOND 134055928
 #define NDS_ITCM_CODE

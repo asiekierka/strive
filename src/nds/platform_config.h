@@ -8,6 +8,8 @@
 
 #define USE_VIDEO_MEMORY_DIRTY
 
+#define STRIVE_SETVBUF_SIZE 4096
+
 #define PLATFORM_TICKS_PER_SECOND 33513982
 #define NDS_ITCM_CODE __attribute__((section(".itcm"), long_call))
 #define NDS_DTCM_DATA __attribute__((section(".dtcm")))

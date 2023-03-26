@@ -14,7 +14,6 @@
 
 bool wd_fdc_st_read_sector(wd_fdc_t *fdc, int track, int side, int sector, uint8_t *buffer) {
     int offset = ((((track * fdc->f_sides) + side) * fdc->f_sectors_per_track) + sector) * 512;
-    debug_printf("wd_fdc_st: read from %d (%d/%d/%d)\n", offset, track, side, sector);
     if (fseek(fdc->file, offset, SEEK_SET)) return false;
     return fread(buffer, 512, 1, fdc->file) > 0;
 }
@@ -183,6 +182,9 @@ void wd_fdc_open(wd_fdc_t *fdc, FILE *file, const char *hint_filename) {
     fdc->f_head = 0;
 
     if (file != NULL) {
+#ifdef STRIVE_SETVBUF_SIZE
+        setvbuf(file, NULL, _IOFBF, STRIVE_SETVBUF_SIZE);
+#endif
         if (HINT_EXTENSION_IS(hint_filename, ".msa") && wd_fdc_msa_open(fdc, file)) {
             return;
         } else if (HINT_EXTENSION_IS(hint_filename, ".st") && wd_fdc_st_open(fdc, file)) {
@@ -337,6 +339,7 @@ static void fdc_write(wd_fdc_t *fdc, uint8_t addr, uint8_t value) {
                 break;
             case 0x80: /* Read Sector */
             case 0x90:
+                // debug_printf("fdc: read sector\n");
                 atari_wd1772.fdc_status &= ~0x7F;
                 atari_wd1772.fdc_status |= FDC_STATUS_BUSY;
                 if (fdc->file == NULL
