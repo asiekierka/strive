@@ -16,7 +16,7 @@ bool platform_init(void) {
     _platform_gfx_init();
 
     fatInitDefault();
-    // nitroFSInit("nitro:/");
+    nitroFSInit("nitro:/");
 
 	// Timers 0-1 - profiling timers
 	TIMER0_DATA = 0;

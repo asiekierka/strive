@@ -9,9 +9,13 @@
 int main(int argc, const char **argv) {
 	platform_init();
 
-	iprintf("STrive emulator\n");
+	printf("STrive emulator\n");
 
-	system_init();
+	if (!system_init()) {
+		printf("System init failure!\n");
+		while(1);
+	}
+
 	platform_audio_init();
 
 	double time_behind = 0.0;
@@ -24,7 +28,7 @@ int main(int argc, const char **argv) {
 #ifdef SPEED_MEASURE
 		ticks = platform_get_ticks() - ticks;
 		uint32_t expected_ticks = PLATFORM_TICKS_PER_SECOND / 50;
-		iprintf("framespeed: %d/%d ticks (%d%%)\n",
+		printf("framespeed: %d/%d ticks (%d%%)\n",
 			ticks, expected_ticks, (expected_ticks * 100 / ticks));
 #endif
 

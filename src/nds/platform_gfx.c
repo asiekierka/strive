@@ -23,10 +23,10 @@ static const uint8_t color_map_ste[16] = {
 
 void _platform_gfx_init(void) {
     lcdMainOnBottom();
-    
+
     videoSetMode(MODE_0_2D);
     vramSetBankA(VRAM_A_MAIN_BG);
-    consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 3, 22, true, true);
+    consoleInit(NULL, 0, BgType_Text4bpp, BgSize_T_256x256, 22, 3, true, true);
 
     videoSetModeSub(MODE_5_2D | DISPLAY_BG2_ACTIVE | DISPLAY_BG3_ACTIVE);
     vramSetBankC(VRAM_C_SUB_BG);

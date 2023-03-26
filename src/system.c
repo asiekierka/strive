@@ -174,7 +174,9 @@ static void system_cpu_run(int cycles) {
 
 bool system_init(void) {
     memory_ram = malloc(memory_ram_mask + 1);
+    if (memory_ram == NULL) return false;
     memory_rom = malloc(192 * 1024);
+    if (memory_rom == NULL) return false;
 
     if (!system_cpu_init()) return false;
 

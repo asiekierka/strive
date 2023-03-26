@@ -2,13 +2,16 @@
 
 #define STRIVE_68K_CYCLONE
 #define STRIVE_AY38910_FLUBBA
-#define ROM_FILE "/etos192uk.img"
+#define ROM_FILE "nitro:/emutos/etos192uk.img"
+//#define ROM_FILE "/etos192uk.img"
 
 #define debug_printf(...)
 
 #define USE_VIDEO_MEMORY_DIRTY
 
+#ifndef __BLOCKSDS__
 #define STRIVE_SETVBUF_SIZE 4096
+#endif
 
 #define PLATFORM_TICKS_PER_SECOND 33513982
 #define NDS_ITCM_CODE __attribute__((section(".itcm"), long_call))
