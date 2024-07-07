@@ -37,8 +37,8 @@ void ym2149_update(uint32_t cycles) {
 
 #ifdef __3DS__
     samples_to_mix = samples_to_mix & 1023;
-    ay38910Mixer(samples_to_mix, ym2149_data, &ym2149);
-    platform_audio_push(PLATFORM_AUDIO_CHANNEL_YM2149, ym2149_data, samples_to_mix);
+    ay38910Mixer(samples_to_mix, (s16*) ym2149_data, &ym2149);
+    platform_audio_push(PLATFORM_AUDIO_CHANNEL_YM2149, (uint8_t*) ym2149_data, samples_to_mix);
 #else
     // TODO
 #endif

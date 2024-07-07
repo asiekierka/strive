@@ -2,15 +2,17 @@
 #
 # SPDX-FileContributor: Antonio Niño Díaz, 2023
 
-ifeq ($(strip $(BLOCKSDS)),)
-    $(error "Environment variable BLOCKSDS not found")
-endif
+export BLOCKSDS                 ?= /opt/blocksds/core
+export BLOCKSDSEXT              ?= /opt/blocksds/external
+
+export WONDERFUL_TOOLCHAIN      ?= /opt/wonderful
+ARM_NONE_EABI_PATH      ?= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/
 
 # Source code paths
 # -----------------
 
-SOURCEDIRS	:= src/nds/arm7/source vendor/ay38910-flubba
-INCLUDEDIRS	:= $(SOURCEDIRS) build_blocksds/arm7
+SOURCEDIRS	:= src/nds/arm7 vendor/ay38910-flubba
+INCLUDEDIRS	:= $(SOURCEDIRS) build_nds/arm7
 BINDIRS		:=
 
 # Defines passed to all files
@@ -29,18 +31,19 @@ LIBDIRS		:= $(BLOCKSDS)/libs/libnds \
 # Build artifacts
 # -----------------
 
-BUILDDIR	:= build_blocksds/arm7
+BUILDDIR	:= build_nds/arm7
 NAME		:= arm7
-ELF		:= build_blocksds/$(NAME).elf
-DUMP		:= build_blocksds/$(NAME).dump
-MAP		:= build_blocksds/$(NAME).map
+ELF		:= build_nds/$(NAME).elf
+DUMP		:= build_nds/$(NAME).dump
+MAP		:= build_nds/$(NAME).map
 
 # Tools
 # -----
 
-PREFIX		:= arm-none-eabi-
+PREFIX		:= $(ARM_NONE_EABI_PATH)arm-none-eabi-
 CC		:= $(PREFIX)gcc
 CXX		:= $(PREFIX)g++
+LD              := $(PREFIX)gcc
 OBJDUMP		:= $(PREFIX)objdump
 MKDIR		:= mkdir
 RM		:= rm -rf
@@ -71,41 +74,38 @@ SOURCES_CPP	:= $(shell find -L $(SOURCEDIRS) -name "*.cpp")
 
 DEFINES		+= -D__NDS__ -DARM7
 
-ARCH		:= -mcpu=arm7tdmi -mtune=arm7tdmi
+ARCH            := -mthumb -mcpu=arm7tdmi
 
-WARNFLAGS	:= -Wall
+SPECS           := $(BLOCKSDS)/sys/crts/ds_arm7.specs
+
+WARNFLAGS       := -Wall
 
 ifeq ($(SOURCES_CPP),)
-    LD	:= $(CC)
+        LIBS    += -lc
 else
-    LD	:= $(CXX)
+        LIBS    += -lstdc++ -lc
 endif
 
-INCLUDEFLAGS	:= $(foreach path,$(INCLUDEDIRS),-I$(path)) \
-		   $(foreach path,$(LIBDIRS),-I$(path)/include)
+INCLUDEFLAGS    := $(foreach path,$(INCLUDEDIRS),-I$(path)) \
+                   $(foreach path,$(LIBDIRS),-I$(path)/include)
 
-LIBDIRSFLAGS	:= $(foreach path,$(LIBDIRS),-L$(path)/lib)
+LIBDIRSFLAGS    := $(foreach path,$(LIBDIRS),-L$(path)/lib)
 
-ASFLAGS		+= -x assembler-with-cpp $(DEFINES) $(ARCH) \
-		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) \
-		   -ffunction-sections -fdata-sections
+ASFLAGS         += -x assembler-with-cpp $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -ffunction-sections -fdata-sections \
+                   -specs=$(SPECS)
 
-CFLAGS		+= -std=gnu11 $(WARNFLAGS) $(DEFINES) $(ARCH) \
-		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) -O2 \
-		   -ffunction-sections -fdata-sections \
-		   -fomit-frame-pointer
+CFLAGS          += -std=gnu17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -O2 -ffunction-sections -fdata-sections \
+                   -specs=$(SPECS)
 
-CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
-		   -mthumb -mthumb-interwork $(INCLUDEFLAGS) -O2 \
-		   -ffunction-sections -fdata-sections \
-		   -fno-exceptions -fno-rtti \
-		   -fomit-frame-pointer
+CXXFLAGS        += -std=gnu++17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -O2 -ffunction-sections -fdata-sections \
+                   -fno-exceptions -fno-rtti \
+                   -specs=$(SPECS)
 
-LDFLAGS		:= -mthumb -mthumb-interwork $(LIBDIRSFLAGS) \
-		   -Wl,-Map,$(MAP) -Wl,--gc-sections -nostdlib \
-		   -T$(BLOCKSDS)/sys/crts/ds_arm7.ld \
-		   -Wl,--no-warn-rwx-segments \
-		   -Wl,--start-group $(LIBS) -lgcc -Wl,--end-group
+LDFLAGS         := $(ARCH) $(LIBDIRSFLAGS) -Wl,-Map,$(MAP) $(DEFINES) \
+                   -Wl,--start-group $(LIBS) -Wl,--end-group -specs=$(SPECS)
 
 # Intermediate build files
 # ------------------------
@@ -131,7 +131,7 @@ all: $(ELF)
 
 $(ELF): $(OBJS)
 	@echo "  LD.7    $@"
-	$(V)$(LD) -o $@ $(OBJS) $(BLOCKSDS)/sys/crts/ds_arm7_crt0.o $(LDFLAGS)
+	$(V)$(LD) -o $@ $(OBJS) $(LDFLAGS)
 
 $(DUMP): $(ELF)
 	@echo "  OBJDUMP.7 $@"

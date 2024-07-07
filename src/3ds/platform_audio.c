@@ -1,8 +1,8 @@
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <3ds.h>
-#include "3ds/services/dsp.h"
 #include "platform.h"
 #include "platform_config.h"
 

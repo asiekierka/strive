@@ -26,22 +26,29 @@ static struct ctr_shader_data shader;
 
 static C3D_Tex screen_tex;
 static uint32_t *screen_buf;
+static bool screen_wide;
 
 void _platform_gfx_init(void) {
     C3D_TexEnv *texEnv;
 
+    uint8_t console_model_id;
+    CFGU_GetSystemModel(&console_model_id);
+    screen_wide = console_model_id != 3 /* Old 2DS */;
+
     gfxInitDefault();
     gfxSet3D(false);
+    gfxSetWide(screen_wide);
     consoleInit(GFX_BOTTOM, NULL);
 
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
-	target_top = C3D_RenderTargetCreate(240, 400, GPU_RB_RGB8, GPU_RB_DEPTH16);
+	target_top = C3D_RenderTargetCreate(240, screen_wide ? 800 : 400, GPU_RB_RGB8, GPU_RB_DEPTH16);
 	C3D_RenderTargetClear(target_top, C3D_CLEAR_ALL, 0, 0);
 	C3D_RenderTargetSetOutput(target_top, GFX_TOP, GFX_LEFT,
 		GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGB8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8));
 
 	C3D_TexInitVRAM(&screen_tex, 1024, 256, GPU_RGBA8);
+        C3D_TexSetFilter(&screen_tex, GPU_LINEAR, GPU_NEAREST);
 	screen_buf = linearAlloc(1024 * 256 * 4);
 
 	ctr_init_shader(&shader, shader_shbin, shader_shbin_size);

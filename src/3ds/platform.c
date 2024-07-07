@@ -12,6 +12,7 @@ void _platform_gfx_init(void);
 void _platform_gfx_exit(void);
 
 bool platform_init(void) {
+    cfguInit();
     romfsInit();
 
     _platform_gfx_init();
@@ -34,6 +35,7 @@ bool platform_exit(void) {
     _platform_gfx_exit();
 
     romfsExit();
+    cfguExit();
 
     return true;
 }

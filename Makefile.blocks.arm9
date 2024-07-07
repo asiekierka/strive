@@ -2,15 +2,17 @@
 #
 # SPDX-FileContributor: Antonio Niño Díaz, 2023
 
-ifeq ($(strip $(BLOCKSDS)),)
-    $(error "Environment variable BLOCKSDS not found")
-endif
+export BLOCKSDS                 ?= /opt/blocksds/core
+export BLOCKSDSEXT              ?= /opt/blocksds/external
+
+export WONDERFUL_TOOLCHAIN      ?= /opt/wonderful
+ARM_NONE_EABI_PATH      ?= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/
 
 # Source code paths
 # -----------------
 
 SOURCEDIRS	:= src src/nds vendor/ay38910-flubba vendor/cyclone/Disa
-INCLUDEDIRS	:= $(SOURCEDIRS) vendor/cyclone build_blocksds/arm9
+INCLUDEDIRS	:= $(SOURCEDIRS) vendor/cyclone build_nds/arm9
 GFXDIRS		:=
 BINDIRS		:=
 AUDIODIRS	:=
@@ -18,7 +20,7 @@ AUDIODIRS	:=
 # Defines passed to all files
 # ---------------------------
 
-DEFINES		:=
+DEFINES		:= -DPICOLIBC_LONG_LONG_PRINTF_SCANF
 
 # Libraries
 # ---------
@@ -30,20 +32,21 @@ LIBDIRS		:= $(BLOCKSDS)/libs/maxmod \
 # Build artifacts
 # ---------------
 
-BUILDDIR	:= build_blocksds/arm9
+BUILDDIR	:= build_nds/arm9
 NAME		:= arm9
-ELF		:= build_blocksds/$(NAME).elf
-DUMP		:= build_blocksds/$(NAME).dump
-MAP		:= build_blocksds/$(NAME).map
+ELF		:= build_nds/$(NAME).elf
+DUMP		:= build_nds/$(NAME).dump
+MAP		:= build_nds/$(NAME).map
 SOUNDBANKDIR	:= $(BUILDDIR)/maxmod
 
 # Tools
 # -----
 
-PREFIX		:= arm-none-eabi-
-CC		:= $(PREFIX)gcc
-CXX		:= $(PREFIX)g++
-OBJDUMP		:= $(PREFIX)objdump
+PREFIX          := $(ARM_NONE_EABI_PATH)arm-none-eabi-
+CC              := $(PREFIX)gcc
+CXX             := $(PREFIX)g++
+LD              := $(PREFIX)gcc
+OBJDUMP         := $(PREFIX)objdump
 MKDIR		:= mkdir
 RM		:= rm -rf
 
@@ -78,50 +81,45 @@ SOURCES_S	:= $(shell find -L $(SOURCEDIRS) -maxdepth 1 -name "*.s")
 SOURCES_C	:= $(shell find -L $(SOURCEDIRS) -maxdepth 1 -name "*.c")
 SOURCES_CPP	:= $(shell find -L $(SOURCEDIRS) -maxdepth 1 -name "*.cpp")
 
-SOURCES_S	+= build_blocksds/arm9/Cyclone.s
+SOURCES_S	+= build_nds/arm9/Cyclone.s
 
 # Compiler and linker flags
 # -------------------------
 
 DEFINES		+= -D__NDS__ -DARM9
 
-ARCH		:= -march=armv5te -mtune=arm946e-s
+ARCH            := -marm -mcpu=arm946e-s+nofp
 
-WARNFLAGS	:= -Wall
+SPECS           := $(BLOCKSDS)/sys/crts/ds_arm9.specs
+
+WARNFLAGS       := -Wall
 
 ifeq ($(SOURCES_CPP),)
-    LD	:= $(CC)
+        LIBS    += -lc
 else
-    LD	:= $(CXX)
+        LIBS    += -lstdc++ -lc
 endif
 
-INCLUDEFLAGS	:= $(foreach path,$(INCLUDEDIRS),-I$(path)) \
-		   $(foreach path,$(LIBDIRS),-I$(path)/include)
+INCLUDEFLAGS    := $(foreach path,$(INCLUDEDIRS),-I$(path)) \
+                   $(foreach path,$(LIBDIRS),-I$(path)/include)
 
-LIBDIRSFLAGS	:= $(foreach path,$(LIBDIRS),-L$(path)/lib)
+LIBDIRSFLAGS    := $(foreach path,$(LIBDIRS),-L$(path)/lib)
 
-ASFLAGS		+= -x assembler-with-cpp $(DEFINES) $(ARCH) \
-		   -marm -mthumb-interwork $(INCLUDEFLAGS) \
-		   -ffunction-sections -fdata-sections
+ASFLAGS         += -x assembler-with-cpp $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -ffunction-sections -fdata-sections \
+                   -specs=$(SPECS)
 
-CFLAGS		+= -std=gnu11 $(WARNFLAGS) $(DEFINES) $(ARCH) \
-		   -marm -mthumb-interwork $(INCLUDEFLAGS) -O2 \
-		   -ffunction-sections -fdata-sections \
-		   -fomit-frame-pointer
+CFLAGS          += -std=gnu17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -O2 -ffunction-sections -fdata-sections \
+                   -specs=$(SPECS)
 
-CXXFLAGS	+= -std=gnu++14 $(WARNFLAGS) $(DEFINES) $(ARCH) \
-		   -marm -mthumb-interwork $(INCLUDEFLAGS) -O2 \
-		   -ffunction-sections -fdata-sections \
-		   -fno-exceptions -fno-rtti \
-		   -fomit-frame-pointer
+CXXFLAGS        += -std=gnu++17 $(WARNFLAGS) $(DEFINES) $(INCLUDEFLAGS) \
+                   $(ARCH) -O2 -ffunction-sections -fdata-sections \
+                   -fno-exceptions -fno-rtti \
+                   -specs=$(SPECS)
 
-LDFLAGS		:= -Wl,--defsym=vfprintf=__i_vfprintf -Wl,--defsym=vfscanf=__i_vfscanf \
-		   -marm -mthumb-interwork $(LIBDIRSFLAGS) \
-		   -Wl,-Map,$(MAP) -Wl,--gc-sections -nostdlib \
-		   -T$(BLOCKSDS)/sys/crts/ds_arm9.mem \
-		   -T$(BLOCKSDS)/sys/crts/ds_arm9.ld \
-		   -Wl,--no-warn-rwx-segments \
-		   -Wl,--start-group $(LIBS) -lgcc -Wl,--end-group
+LDFLAGS         := $(ARCH) $(LIBDIRSFLAGS) -Wl,-Map,$(MAP) $(DEFINES) \
+                   -Wl,--start-group $(LIBS) -Wl,--end-group -specs=$(SPECS)
 
 # Intermediate build files
 # ------------------------
@@ -154,7 +152,7 @@ all: $(ELF)
 
 $(ELF): $(OBJS)
 	@echo "  LD.9    $@"
-	$(V)$(LD) -o $@ $(OBJS) $(BLOCKSDS)/sys/crts/ds_arm9_crt0.o $(LDFLAGS)
+	$(V)$(LD) -o $@ $(OBJS) $(LDFLAGS)
 
 $(DUMP): $(ELF)
 	@echo "  OBJDUMP.9 $@"
@@ -210,13 +208,13 @@ $(SOUNDBANKDIR)/soundbank.c.o $(SOUNDBANKDIR)/soundbank.h : $(SOURCES_AUDIO)
 # All assets must be built before the source code
 # -----------------------------------------------
 
-build_blocksds/arm9/Cyclone.s :	src/cyclone_config.h
+build_nds/arm9/Cyclone.s :	src/cyclone_config.h
 	@echo generating Cyclone.s ...
 	pushd vendor/cyclone/ && \
 	make clean && \
 	CC=gcc CXX=g++ \
 	CFLAGS="-D__NDS__" make CONFIG_FILE=../../src/cyclone_config.h && \
-	cp Cyclone.s ../../build_blocksds/arm9/Cyclone.s && \
+	cp Cyclone.s ../../build_nds/arm9/Cyclone.s && \
 	popd
 
 $(SOURCES_S) $(SOURCES_C) $(SOURCES_CPP): $(HEADERS_ASSETS)
